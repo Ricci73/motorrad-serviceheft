@@ -261,6 +261,12 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <div class="form-group"><label>🔴 Nächste HU / TÜV fällig</label><input id="bHuDate" type="date" /></div>
       <div class="form-group"><label>Letzte HU / TÜV</label><input id="bHuLast" type="date" /></div>
     </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.9rem;min-height:44px">
+        <input type="checkbox" id="bNoHu" style="width:20px;height:20px;accent-color:var(--accent);flex-shrink:0" onchange="toggleHuFields()" />
+        Kein TÜV / nicht zulassungspflichtig (z.B. Rennstrecke, Oldtimer ohne Zulassung)
+      </label>
+    </div>
     <div class="form-group"><label>Notizen</label><textarea id="bNotes" placeholder="Sonderausstattung…"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeBikeModal()">Abbrechen</button>
@@ -519,7 +525,7 @@ function renderBikes() {
         <div class="bike-meta">${[b.year, b.plate].filter(Boolean).join(' · ')}${b.firstReg ? ' · EZ: '+new Date(b.firstReg).toLocaleDateString('de-DE') : ''}</div>
         ${b.fin ? `<div style="color:var(--text2);font-size:0.75rem;margin-bottom:4px">FIN: ${b.fin}</div>` : ''}
         <div class="bike-km">📍 ${(b.km||0).toLocaleString('de-DE')} km</div>
-        ${b.huDate ? `<div style="margin-top:6px">${huBadge(b.huDate)}</div>` : ''}
+        ${(b.huDate || b.noHu) ? `<div style="margin-top:6px">${huBadge(b)}</div>` : ''}
       </div>
       <div class="bike-card-actions">
         <button class="btn-icon" onclick="event.stopPropagation();openBikeModal('${b.id}')">✏️</button>
@@ -548,7 +554,9 @@ function openBikeModal(id) {
   document.getElementById('bFirstReg').value = b?.firstReg||'';
   document.getElementById('bHuDate').value = b?.huDate||'';
   document.getElementById('bHuLast').value = b?.huLast||'';
+  document.getElementById('bNoHu').checked = b?.noHu||false;
   document.getElementById('bNotes').value = b?.notes||'';
+  toggleHuFields();
   document.getElementById('bikeModal').classList.add('open');
 }
 function closeBikeModal() { document.getElementById('bikeModal').classList.remove('open'); }
@@ -556,7 +564,7 @@ function saveBike() {
   const make = document.getElementById('bMake').value.trim();
   const model = document.getElementById('bModel').value.trim();
   if (!make||!model) { showToast('Marke und Modell sind Pflichtfelder','error'); return; }
-  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', fin:document.getElementById('bFin').value.trim(), firstReg:document.getElementById('bFirstReg').value||null, huDate:document.getElementById('bHuDate').value||null, huLast:document.getElementById('bHuLast').value||null, notes:document.getElementById('bNotes').value.trim() };
+  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', fin:document.getElementById('bFin').value.trim(), firstReg:document.getElementById('bFirstReg').value||null, huDate:document.getElementById('bHuDate').value||null, huLast:document.getElementById('bHuLast').value||null, noHu:document.getElementById('bNoHu').checked, notes:document.getElementById('bNotes').value.trim() };
   if (state.editingBikeId) {
     Object.assign(state.bikes.find(x=>x.id===state.editingBikeId), data);
   } else {
@@ -688,7 +696,7 @@ function renderStats() {
     <div class="stat-card"><div class="stat-value">${totalCost.toLocaleString('de-DE',{minimumFractionDigits:2})} €</div><div class="stat-label">Kosten</div></div>
     <div class="stat-card"><div class="stat-value">${(bike?.km||0).toLocaleString('de-DE')}</div><div class="stat-label">km-Stand</div></div>
     <div class="stat-card"><div class="stat-value" style="color:${overdue>0?'var(--danger)':'var(--success)'}">${overdue}</div><div class="stat-label">Überfällig</div></div>
-    ${bike?.huDate ? `<div class="stat-card" style="grid-column:span 2">${huBadge(bike.huDate)}<div class="stat-label" style="margin-top:4px">HU / TÜV</div></div>` : ''}
+    ${(bike?.huDate || bike?.noHu) ? `<div class="stat-card" style="grid-column:span 2">${huBadge(bike)}<div class="stat-label" style="margin-top:4px">HU / TÜV</div></div>` : ''}
   `;
 }
 function renderLogbook() {
@@ -826,19 +834,22 @@ function showToast(msg,type='success') {
 }
 
 // ── HU/TÜV BADGE ──
-function huBadge(huDate) {
-  if (!huDate) return '';
+function toggleHuFields() {
+  const noHu = document.getElementById('bNoHu').checked;
+  const huRow = document.getElementById('bHuDate').closest('.form-row');
+  huRow.style.display = noHu ? 'none' : 'grid';
+}
+
+function huBadge(bike) {
+  if (bike.noHu) return `<span class="status-badge" style="background:rgba(144,144,160,0.15);color:var(--text2)">🏁 Kein TÜV</span>`;
+  if (!bike.huDate) return '';
   const now = Date.now();
-  const due = new Date(huDate).getTime();
+  const due = new Date(bike.huDate).getTime();
   const daysLeft = Math.round((due - now) / (24*3600*1000));
-  const dateStr = new Date(huDate).toLocaleDateString('de-DE');
-  if (daysLeft < 0) {
-    return `<span class="status-badge status-overdue">🔴 HU überfällig seit ${Math.abs(daysLeft)} Tagen (${dateStr})</span>`;
-  } else if (daysLeft <= 30) {
-    return `<span class="status-badge status-due">⚠️ HU in ${daysLeft} Tagen (${dateStr})</span>`;
-  } else {
-    return `<span class="status-badge status-ok">✅ HU bis ${dateStr}</span>`;
-  }
+  const dateStr = new Date(bike.huDate).toLocaleDateString('de-DE');
+  if (daysLeft < 0) return `<span class="status-badge status-overdue">🔴 HU überfällig seit ${Math.abs(daysLeft)} Tagen (${dateStr})</span>`;
+  if (daysLeft <= 30) return `<span class="status-badge status-due">⚠️ HU in ${daysLeft} Tagen (${dateStr})</span>`;
+  return `<span class="status-badge status-ok">✅ HU bis ${dateStr}</span>`;
 }
 
 // ── EDIT LOG ──
