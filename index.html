@@ -379,6 +379,10 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
         <span>📄</span>
         <div style="text-align:left"><div style="font-weight:700">PDF exportieren</div><div style="font-size:0.75rem;color:var(--text2);font-weight:400">Druckbares Serviceheft</div></div>
       </button>
+      <button class="btn btn-secondary" onclick="exportICS()" style="justify-content:flex-start">
+        <span>📅</span>
+        <div style="text-align:left"><div style="font-weight:700">Kalender exportieren (.ics)</div><div style="font-size:0.75rem;color:var(--text2);font-weight:400">HU &amp; Wartungstermine in iPhone/Apple Kalender</div></div>
+      </button>
     </div>
     <div class="section-label">Import</div>
     <div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px;font-size:0.85rem;color:var(--text2)">
@@ -805,6 +809,109 @@ function importJSON(event) {
     } catch(err) { showToast('Fehler: '+err.message,'error'); }
   };
   reader.readAsText(file); event.target.value='';
+}
+
+// ── KALENDER EXPORT (.ics) ──
+function exportICS() {
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Motorrad Serviceheft//DE',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Motorrad Wartung',
+    'X-WR-TIMEZONE:Europe/Berlin',
+  ];
+
+  function icsDate(dateStr) {
+    // dateStr: YYYY-MM-DD → 20260415
+    return dateStr.replace(/-/g,'');
+  }
+  function icsNow() {
+    return new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  }
+  function uid2() {
+    return Math.random().toString(36).substr(2,12)+'@motorrad-serviceheft';
+  }
+  function addEvent(dtStart, summary, description, alarmDaysBefore) {
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:'+uid2());
+    lines.push('DTSTAMP:'+icsNow());
+    lines.push('DTSTART;VALUE=DATE:'+dtStart);
+    lines.push('DTEND;VALUE=DATE:'+dtStart);
+    lines.push('SUMMARY:'+summary.replace(/,/g,'\\,'));
+    if (description) lines.push('DESCRIPTION:'+description.replace(/\n/g,'\\n').replace(/,/g,'\\,'));
+    // Erinnerung X Tage vorher
+    if (alarmDaysBefore > 0) {
+      lines.push('BEGIN:VALARM');
+      lines.push('TRIGGER:-P'+alarmDaysBefore+'D');
+      lines.push('ACTION:DISPLAY');
+      lines.push('DESCRIPTION:Erinnerung: '+summary.replace(/,/g,'\\,'));
+      lines.push('END:VALARM');
+    }
+    lines.push('END:VEVENT');
+  }
+
+  let eventCount = 0;
+  const nowMs = Date.now();
+
+  state.bikes.forEach(bike => {
+    const bikeName = `${bike.make} ${bike.model}`;
+
+    // HU/TÜV Termin
+    if (!bike.noHu && bike.huDate) {
+      addEvent(
+        icsDate(bike.huDate),
+        `🔴 HU/TÜV fällig: ${bikeName}`,
+        `Fahrzeug: ${bikeName}\nKennzeichen: ${bike.plate||'—'}\nHU/TÜV Fälligkeitsdatum: ${new Date(bike.huDate).toLocaleDateString('de-DE')}`,
+        30
+      );
+      eventCount++;
+    }
+
+    // Wartungspositionen die fällig oder bald fällig sind
+    const maint = state.maintenance[bike.id]||[];
+    maint.forEach(item => {
+      const st = getMaintenanceStatus(item, bike.km||0);
+      if (st === 'ok') return; // nur fällige
+
+      // Berechne Fälligkeitsdatum
+      let dueDate = null;
+      if (item.intervalMonth && item.lastDate) {
+        const d = new Date(new Date(item.lastDate).getTime() + item.intervalMonth*30.44*24*3600*1000);
+        dueDate = d.toISOString().split('T')[0];
+      } else if (st === 'overdue') {
+        // Bereits überfällig — heute als Termin
+        dueDate = new Date().toISOString().split('T')[0];
+      }
+
+      if (dueDate) {
+        const label = st === 'overdue' ? '🔴' : '⚠️';
+        addEvent(
+          icsDate(dueDate),
+          `${label} Wartung fällig: ${item.name} (${bikeName})`,
+          `Fahrzeug: ${bikeName}\nWartung: ${item.name}\nIntervall: ${[item.intervalKm?item.intervalKm.toLocaleString('de-DE')+' km':'', item.intervalMonth?item.intervalMonth+' Monate':''].filter(Boolean).join(' / ')}\nZuletzt: ${[item.lastKm?item.lastKm.toLocaleString('de-DE')+' km':'', item.lastDate?new Date(item.lastDate).toLocaleDateString('de-DE'):''].filter(Boolean).join(', ')||'—'}`,
+          14
+        );
+        eventCount++;
+      }
+    });
+  });
+
+  lines.push('END:VCALENDAR');
+
+  if (eventCount === 0) {
+    showToast('Keine fälligen Termine gefunden', 'error');
+    return;
+  }
+
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `motorrad-wartung-${new Date().toISOString().split('T')[0]}.ics`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast(`📅 ${eventCount} Termine exportiert`);
 }
 
 // ── PDF ──
