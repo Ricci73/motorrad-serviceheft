@@ -486,14 +486,65 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 let state = { bikes:[], maintenance:{}, logs:{}, selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
 
 function save() {
-  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs })); }
-  catch(e) { showToast('Speicherfehler', 'error'); }
+  // Dual-write: IndexedDB (primary) + localStorage (fallback)
+  dbSave();
+  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs })); } catch(e) {}
 }
-function load() {
-  try {
-    const d = localStorage.getItem('moto_serviceheft');
-    if (d) { const p = JSON.parse(d); state.bikes=p.bikes||[]; state.maintenance=p.maintenance||{}; state.logs=p.logs||{}; }
-  } catch(e) {}
+
+// ── IndexedDB ──
+const DB_NAME = 'MotoServiceheftDB';
+const DB_VERSION = 1;
+let _db = null;
+
+function dbOpen() {
+  return new Promise((resolve, reject) => {
+    if (_db) { resolve(_db); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('appdata')) db.createObjectStore('appdata');
+    };
+    req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+    req.onerror = e => { console.warn('IndexedDB error', e); reject(e); };
+  });
+}
+
+function dbSave() {
+  dbOpen().then(db => {
+    const tx = db.transaction('appdata', 'readwrite');
+    const store = tx.objectStore('appdata');
+    store.put({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs }, 'state');
+  }).catch(()=>{});
+}
+
+function dbLoad() {
+  return dbOpen().then(db => {
+    return new Promise((resolve) => {
+      const tx = db.transaction('appdata', 'readonly');
+      const store = tx.objectStore('appdata');
+      const req = store.get('state');
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  }).catch(()=>null);
+}
+
+async function load() {
+  // Try IndexedDB first
+  let data = await dbLoad();
+  if (data && data.bikes && data.bikes.length) {
+    state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{};
+  } else {
+    // Fallback: migrate from localStorage
+    try {
+      const d = localStorage.getItem('moto_serviceheft');
+      if (d) {
+        const p = JSON.parse(d);
+        state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{};
+        dbSave(); // migrate to IndexedDB
+      }
+    } catch(e) {}
+  }
   if (!state.bikes.length) addSampleData();
   else state.selectedBike = state.bikes[0]?.id || null;
 }
@@ -1089,9 +1140,11 @@ function saveEditLog() {
 }
 
 // ── INIT ──
-load();
-renderBikes();
-renderBikeSelectors();
+(async () => {
+  await load();
+  renderBikes();
+  renderBikeSelectors();
+})();
 </script>
 </body>
 </html>
