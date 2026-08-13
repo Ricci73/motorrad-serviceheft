@@ -334,6 +334,22 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
   </div>
 </div>
 
+<!-- ── MODAL: km aktualisieren ── -->
+<div class="modal-overlay" id="kmModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title">📍 km-Stand aktualisieren</div><button class="btn-icon" onclick="closeKmModal()">✕</button></div>
+    <div class="form-row">
+      <div class="form-group"><label>Neuer km-Stand *</label><input id="kmValue" type="number" inputmode="numeric" placeholder="23000" /></div>
+      <div class="form-group"><label>Stand vom</label><input id="kmDate" type="date" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeKmModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveKm()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── MODAL: Eintrag bearbeiten ── -->
 <div class="modal-overlay" id="editLogModal">
   <div class="modal" style="max-width:480px">
@@ -528,7 +544,9 @@ function renderBikes() {
         <div class="bike-name">${b.make} ${b.model}</div>
         <div class="bike-meta">${[b.year, b.plate].filter(Boolean).join(' · ')}${b.firstReg ? ' · EZ: '+new Date(b.firstReg).toLocaleDateString('de-DE') : ''}</div>
         ${b.fin ? `<div style="color:var(--text2);font-size:0.75rem;margin-bottom:4px">FIN: ${b.fin}</div>` : ''}
-        <div class="bike-km">📍 ${(b.km||0).toLocaleString('de-DE')} km</div>
+        <div class="bike-km" style="cursor:pointer" onclick="event.stopPropagation();openKmModal('${b.id}')" title="km-Stand aktualisieren">
+          📍 ${(b.km||0).toLocaleString('de-DE')} km${b.kmDate ? ` <span style="font-size:0.7rem;opacity:0.7;margin-left:4px">${new Date(b.kmDate).toLocaleDateString('de-DE')}</span>` : ''} <span style="font-size:0.75rem;margin-left:4px;opacity:0.6">✏️</span>
+        </div>
         ${(b.huDate || b.noHu) ? `<div style="margin-top:6px">${huBadge(b)}</div>` : ''}
       </div>
       <div class="bike-card-actions">
@@ -753,7 +771,7 @@ function saveLog() {
   const log={id:uid(),date,km:+km,type,cost:+document.getElementById('lCost').value||0,workshop:document.getElementById('lWorkshop').value.trim(),notes:document.getElementById('lNotes').value.trim(),photos:[...state.pendingPhotos]};
   state.logs[state.selectedBike].unshift(log);
   const bike=state.bikes.find(b=>b.id===state.selectedBike);
-  if (bike&&+km>(bike.km||0)) bike.km=+km;
+  if (bike&&+km>(bike.km||0)) { bike.km=+km; bike.kmDate=date; }
   save(); closeLogModal(); renderStats(); renderLogbook(); showToast('✅ Eintrag gespeichert');
 }
 function deleteLog(id) {
@@ -938,6 +956,28 @@ function showToast(msg,type='success') {
   const t=document.getElementById('toast');
   t.textContent=msg; t.className='show '+type;
   clearTimeout(window._tt); window._tt=setTimeout(()=>{t.className='';},3000);
+}
+
+// ── KM AKTUALISIEREN ──
+let kmBikeId = null;
+function openKmModal(bikeId) {
+  kmBikeId = bikeId;
+  const bike = state.bikes.find(b=>b.id===bikeId);
+  document.getElementById('kmValue').value = bike?.km||'';
+  document.getElementById('kmDate').value = bike?.kmDate || new Date().toISOString().split('T')[0];
+  document.getElementById('kmModal').classList.add('open');
+}
+function closeKmModal() { document.getElementById('kmModal').classList.remove('open'); kmBikeId=null; }
+function saveKm() {
+  const val = +document.getElementById('kmValue').value;
+  const date = document.getElementById('kmDate').value;
+  if (!val) { showToast('km-Stand eingeben','error'); return; }
+  const bike = state.bikes.find(b=>b.id===kmBikeId);
+  if (!bike) return;
+  bike.km = val;
+  bike.kmDate = date || new Date().toISOString().split('T')[0];
+  save(); closeKmModal(); renderBikes(); renderStats();
+  showToast(`✅ km-Stand aktualisiert: ${val.toLocaleString('de-DE')} km`);
 }
 
 // ── HU/TÜV BADGE ──
