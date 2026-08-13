@@ -364,6 +364,12 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <div class="form-group"><label>Werkstatt</label><input id="elWorkshop" /></div>
     </div>
     <div class="form-group"><label>Notizen</label><textarea id="elNotes"></textarea></div>
+    <div class="form-group">
+      <label>Fotos / Belege</label>
+      <div class="photo-upload-area" onclick="document.getElementById('elPhotoInput').click()">📷 Fotos hinzufügen</div>
+      <input type="file" id="elPhotoInput" accept="image/*" multiple style="display:none" onchange="handleEditPhotos(event)" />
+      <div class="photo-previews" id="elPhotoPreviews"></div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeEditLogModal()">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveEditLog()">💾 Speichern</button>
@@ -1001,18 +1007,40 @@ function huBadge(bike) {
 
 // ── EDIT LOG ──
 let editingLogId = null;
+let editPendingPhotos = [];
+
 function openEditLogModal(id) {
   const log = (state.logs[state.selectedBike]||[]).find(x=>x.id===id);
   if (!log) return;
   editingLogId = id;
+  editPendingPhotos = [...(log.photos||[])]; // start with existing photos
   document.getElementById('elDate').value = log.date||'';
   document.getElementById('elKm').value = log.km||'';
   document.getElementById('elCost').value = log.cost||'';
   document.getElementById('elWorkshop').value = log.workshop||'';
   document.getElementById('elNotes').value = log.notes||'';
+  renderEditPhotoPreviews();
   document.getElementById('editLogModal').classList.add('open');
 }
-function closeEditLogModal() { document.getElementById('editLogModal').classList.remove('open'); editingLogId=null; }
+function closeEditLogModal() { document.getElementById('editLogModal').classList.remove('open'); editingLogId=null; editPendingPhotos=[]; }
+
+function handleEditPhotos(e) {
+  Array.from(e.target.files).forEach(f => {
+    const r = new FileReader();
+    r.onload = ev => { editPendingPhotos.push(ev.target.result); renderEditPhotoPreviews(); };
+    r.readAsDataURL(f);
+  });
+  e.target.value = '';
+}
+function renderEditPhotoPreviews() {
+  document.getElementById('elPhotoPreviews').innerHTML = editPendingPhotos.map((p,i) =>
+    `<div class="photo-preview">
+      <img src="${p}" onclick="openPhoto('${p}')" style="cursor:pointer" />
+      <button class="remove" onclick="editPendingPhotos.splice(${i},1);renderEditPhotoPreviews()">✕</button>
+    </div>`
+  ).join('');
+}
+
 function saveEditLog() {
   const log = (state.logs[state.selectedBike]||[]).find(x=>x.id===editingLogId);
   if (!log) return;
@@ -1021,6 +1049,7 @@ function saveEditLog() {
   log.cost = +document.getElementById('elCost').value || 0;
   log.workshop = document.getElementById('elWorkshop').value.trim();
   log.notes = document.getElementById('elNotes').value.trim();
+  log.photos = [...editPendingPhotos];
   save(); closeEditLogModal(); renderStats(); renderLogbook(); showToast('✅ Eintrag aktualisiert');
 }
 
