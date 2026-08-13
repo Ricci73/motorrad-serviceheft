@@ -322,6 +322,11 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
     </div>
     <div class="form-group"><label>Notizen</label><textarea id="lNotes" placeholder="Verwendete Produkte…"></textarea></div>
     <div class="form-group">
+      <label>📦 Material aus Lager</label>
+      <div id="logMaterialList"></div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addLogMaterial()" style="margin-top:8px;width:100%;justify-content:center">+ Material hinzufügen</button>
+    </div>
+    <div class="form-group">
       <label>Fotos / Belege</label>
       <div style="display:flex;gap:8px">
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('photoCam').click()" style="flex:1;justify-content:center;min-height:48px">📸 Kamera</button>
@@ -470,10 +475,46 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
     <div id="logbookContent"></div>
   </div>
 
-</div>
+  <div class="page" id="page-inventory">
+    <div class="page-header">
+      <div class="page-title">📦 Materiallager</div>
+      <button class="btn btn-primary btn-sm" onclick="openInvModal()">+ Material</button>
+    </div>
+    <div id="inventoryContent"></div>
+  </div>
 
-<!-- ── FAB ── -->
+</div>
 <button class="fab" id="fab" onclick="onFabClick()">+</button>
+
+<!-- ── MODAL: Material ── -->
+<div class="modal-overlay" id="invModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="invModalTitle">Material hinzufügen</div><button class="btn-icon" onclick="closeInvModal()">✕</button></div>
+    <div class="form-group"><label>Bezeichnung *</label><input id="invName" placeholder="z.B. Motorex 10W-50" /></div>
+    <div class="form-row">
+      <div class="form-group"><label>Einheit</label>
+        <select id="invUnit"><option>Liter</option><option>Stück</option><option>Meter</option><option>Set</option><option>Paar</option></select>
+      </div>
+      <div class="form-group"><label>Kategorie</label>
+        <select id="invCategory"><option>Öl</option><option>Filter</option><option>Bremsen</option><option>Kette</option><option>Reifen</option><option>Elektrik</option><option>Sonstiges</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Kaufmenge</label><input id="invQty" type="number" inputmode="decimal" step="0.1" placeholder="4" /></div>
+      <div class="form-group"><label>Preis gesamt (€)</label><input id="invPrice" type="number" inputmode="decimal" step="0.01" placeholder="45.00" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Aktueller Bestand</label><input id="invStock" type="number" inputmode="decimal" step="0.1" /></div>
+      <div class="form-group"><label>Kaufdatum</label><input id="invDate" type="date" /></div>
+    </div>
+    <div class="form-group"><label>Notizen / Artikelnr.</label><textarea id="invNotes" placeholder="Artikelnummer, Bezugsquelle…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeInvModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveInvItem()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── BOTTOM NAV ── -->
 <nav class="bottom-nav">
@@ -484,19 +525,22 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
     <span class="nav-icon">🔧</span>Wartung
   </button>
   <button class="bottom-nav-item" id="nav-logbook" onclick="showPage('logbook')">
-    <span class="nav-icon">📋</span>Serviceheft
+    <span class="nav-icon">📋</span>Service
+  </button>
+  <button class="bottom-nav-item" id="nav-inventory" onclick="showPage('inventory')">
+    <span class="nav-icon">📦</span>Lager
   </button>
 </nav>
 
 
 <script>
 // ── DATA ──
-let state = { bikes:[], maintenance:{}, logs:{}, selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
+let state = { bikes:[], maintenance:{}, logs:{}, inventory:[], selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
 
 function save() {
   // Dual-write: IndexedDB (primary) + localStorage (fallback)
   dbSave();
-  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs })); } catch(e) {}
+  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory })); } catch(e) {}
 }
 
 // ── IndexedDB ──
@@ -521,7 +565,7 @@ function dbSave() {
   dbOpen().then(db => {
     const tx = db.transaction('appdata', 'readwrite');
     const store = tx.objectStore('appdata');
-    store.put({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs }, 'state');
+    store.put({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory }, 'state');
   }).catch(()=>{});
 }
 
@@ -541,14 +585,14 @@ async function load() {
   // Try IndexedDB first
   let data = await dbLoad();
   if (data && data.bikes && data.bikes.length) {
-    state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{};
+    state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[];
   } else {
     // Fallback: migrate from localStorage
     try {
       const d = localStorage.getItem('moto_serviceheft');
       if (d) {
         const p = JSON.parse(d);
-        state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{};
+        state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[];
         dbSave(); // migrate to IndexedDB
       }
     } catch(e) {}
@@ -578,22 +622,21 @@ function showPage(name) {
   state.currentPage = name;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  ['bikes','maintenance','logbook'].forEach(n => {
+  ['bikes','maintenance','logbook','inventory'].forEach(n => {
     document.getElementById('nav-'+n).classList.toggle('active', n===name);
   });
-  // FAB label
   const fab = document.getElementById('fab');
-  if (name==='bikes') { fab.textContent='+'; fab.classList.remove('hidden'); }
-  else if (name==='maintenance') { fab.textContent='+'; fab.classList.remove('hidden'); }
-  else if (name==='logbook') { fab.textContent='+'; fab.classList.remove('hidden'); }
+  fab.textContent='+'; fab.classList.remove('hidden');
   if (name==='bikes') renderBikes();
   if (name==='maintenance') { renderBikeSelectors(); renderMaintenance(); }
   if (name==='logbook') { renderBikeSelectors(); renderStats(); renderLogbook(); }
+  if (name==='inventory') renderInventory();
 }
 function onFabClick() {
   if (state.currentPage==='bikes') openBikeModal(null);
   else if (state.currentPage==='maintenance') openMaintenanceModal();
   else if (state.currentPage==='logbook') openLogModal();
+  else if (state.currentPage==='inventory') openInvModal();
 }
 
 // ── BIKES ──
@@ -801,6 +844,7 @@ function renderLogbook() {
         <div class="log-km">📍 ${(log.km||0).toLocaleString('de-DE')} km${log.cost?` · 💶 ${log.cost.toLocaleString('de-DE',{minimumFractionDigits:2})} €`:''}</div>
         ${log.workshop?`<div style="color:var(--text2);font-size:0.8rem">🔧 ${log.workshop}</div>`:''}
         ${log.notes?`<div class="log-notes">${log.notes}</div>`:''}
+        ${(log.materials&&log.materials.length)?`<div style="margin-top:4px;font-size:0.78rem;color:var(--text2)">📦 ${log.materials.map(m=>`${m.name}: ${m.qty} ${m.unit} (${m.cost.toLocaleString('de-DE',{minimumFractionDigits:2})} €)`).join(', ')}</div>`:''}
         ${photos?`<div class="log-photos">${photos}</div>`:''}
       </div>
       <button class="btn-icon" onclick="deleteLog('${log.id}')">🗑️</button>
@@ -816,6 +860,8 @@ function openLogModal() {
   ['lType','lCost','lWorkshop','lNotes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('photoPreviews').innerHTML='';
   state.pendingPhotos=[];
+  logMaterials=[];
+  renderLogMaterials();
   document.getElementById('logModal').classList.add('open');
 }
 function closeLogModal() { document.getElementById('logModal').classList.remove('open'); }
@@ -868,11 +914,25 @@ function saveLog() {
   const date=document.getElementById('lDate').value,km=document.getElementById('lKm').value,type=document.getElementById('lType').value;
   if (!date||!km||!type) { showToast('Datum, km und Wartungsart sind Pflicht','error'); return; }
   if (!state.logs[state.selectedBike]) state.logs[state.selectedBike]=[];
-  const log={id:uid(),date,km:+km,type,cost:+document.getElementById('lCost').value||0,workshop:document.getElementById('lWorkshop').value.trim(),notes:document.getElementById('lNotes').value.trim(),photos:[...state.pendingPhotos]};
+  // Calculate material costs and deduct stock
+  let materialCost = 0;
+  const usedMaterials = [];
+  logMaterials.forEach(m => {
+    if (!m.invId || !m.qty) return;
+    const inv = state.inventory.find(x=>x.id===m.invId);
+    if (!inv) return;
+    const unitPrice = (inv.qty>0 && inv.price>0) ? (inv.price/inv.qty) : 0;
+    const cost = unitPrice * m.qty;
+    materialCost += cost;
+    inv.stock = Math.max(0, (inv.stock||0) - m.qty); // deduct
+    usedMaterials.push({ name:inv.name, qty:m.qty, unit:inv.unit, cost:Math.round(cost*100)/100 });
+  });
+  const totalCost = (+document.getElementById('lCost').value||0) + materialCost;
+  const log={id:uid(),date,km:+km,type,cost:Math.round(totalCost*100)/100,workshop:document.getElementById('lWorkshop').value.trim(),notes:document.getElementById('lNotes').value.trim(),photos:[...state.pendingPhotos],materials:usedMaterials};
   state.logs[state.selectedBike].unshift(log);
   const bike=state.bikes.find(b=>b.id===state.selectedBike);
   if (bike&&+km>(bike.km||0)) { bike.km=+km; bike.kmDate=date; }
-  save(); closeLogModal(); renderStats(); renderLogbook(); showToast('✅ Eintrag gespeichert');
+  save(); closeLogModal(); renderStats(); renderLogbook(); showToast(`✅ Eintrag gespeichert${materialCost?` (Material: ${materialCost.toLocaleString('de-DE',{minimumFractionDigits:2})} €)`:''}`);
 }
 function deleteLog(id) {
   if (!confirm('Eintrag löschen?')) return;
@@ -885,7 +945,7 @@ function openPhoto(src) { document.getElementById('photoModalImg').src=src; docu
 function openDataModal() { document.getElementById('dataModal').classList.add('open'); }
 function closeDataModal() { document.getElementById('dataModal').classList.remove('open'); }
 function exportJSON() {
-  const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs};
+  const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs,inventory:state.inventory};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=`motorrad-backup-${new Date().toISOString().split('T')[0]}.json`;
@@ -914,7 +974,7 @@ function importJSON(event) {
       const mode=document.querySelector('input[name="importMode"]:checked')?.value||'replace';
       if (mode==='replace') {
         if (!confirm(`Alle Daten ersetzen? Backup enthält ${data.bikes.length} Motorrad/Motorräder.`)) return;
-        state.bikes=data.bikes; state.maintenance=data.maintenance||{}; state.logs=data.logs||{};
+        state.bikes=data.bikes; state.maintenance=data.maintenance||{}; state.logs=data.logs||{}; state.inventory=data.inventory||[];
         state.selectedBike=state.bikes[0]?.id||null;
         showToast(`✅ ${data.bikes.length} Motorrad/Motorräder importiert`);
       } else {
@@ -1056,6 +1116,113 @@ function showToast(msg,type='success') {
   const t=document.getElementById('toast');
   t.textContent=msg; t.className='show '+type;
   clearTimeout(window._tt); window._tt=setTimeout(()=>{t.className='';},3000);
+}
+
+// ── INVENTORY (Materiallager) ──
+let editingInvId = null;
+let logMaterials = []; // [{invId, qty}] temp for current log entry
+
+function renderInventory() {
+  const el = document.getElementById('inventoryContent');
+  if (!state.inventory.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📦</div><p>Noch kein Material im Lager.</p><button class="btn btn-primary" onclick="openInvModal()">+ Material hinzufügen</button></div>`;
+    return;
+  }
+  el.innerHTML = state.inventory.map(item => {
+    const unitPrice = (item.qty > 0 && item.price > 0) ? (item.price / item.qty) : 0;
+    const stockValue = unitPrice * (item.stock||0);
+    return `<div class="maint-item" style="border-left-color:var(--accent2)">
+      <div class="maint-item-body">
+        <div class="maint-name">${item.name} <span style="font-size:0.75rem;color:var(--text2);font-weight:400">${item.category||''}</span></div>
+        <div class="maint-details">
+          Bestand: <strong style="color:var(--accent)">${(item.stock||0).toLocaleString('de-DE',{maximumFractionDigits:1})} ${item.unit}</strong>
+          ${unitPrice ? ` · ${unitPrice.toLocaleString('de-DE',{minimumFractionDigits:2})} €/${item.unit}` : ''}
+          ${stockValue ? ` · Wert: ${stockValue.toLocaleString('de-DE',{minimumFractionDigits:2})} €` : ''}
+          ${item.date ? `<br>Gekauft: ${new Date(item.date).toLocaleDateString('de-DE')}` : ''}
+          ${item.notes ? `<br>${item.notes}` : ''}
+        </div>
+      </div>
+      <div class="maint-actions">
+        <button class="btn-icon" onclick="openInvModal('${item.id}')">✏️</button>
+        <button class="btn-icon" onclick="deleteInvItem('${item.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openInvModal(id) {
+  editingInvId = id||null;
+  const item = id ? state.inventory.find(x=>x.id===id) : null;
+  document.getElementById('invModalTitle').textContent = id ? 'Material bearbeiten' : 'Material hinzufügen';
+  document.getElementById('invName').value = item?.name||'';
+  document.getElementById('invUnit').value = item?.unit||'Liter';
+  document.getElementById('invCategory').value = item?.category||'Öl';
+  document.getElementById('invQty').value = item?.qty||'';
+  document.getElementById('invPrice').value = item?.price||'';
+  document.getElementById('invStock').value = item?.stock??item?.qty||'';
+  document.getElementById('invDate').value = item?.date||new Date().toISOString().split('T')[0];
+  document.getElementById('invNotes').value = item?.notes||'';
+  document.getElementById('invModal').classList.add('open');
+}
+function closeInvModal() { document.getElementById('invModal').classList.remove('open'); editingInvId=null; }
+
+function saveInvItem() {
+  const name = document.getElementById('invName').value.trim();
+  if (!name) { showToast('Bezeichnung fehlt','error'); return; }
+  const data = {
+    name, unit:document.getElementById('invUnit').value, category:document.getElementById('invCategory').value,
+    qty:+document.getElementById('invQty').value||0, price:+document.getElementById('invPrice').value||0,
+    stock:+document.getElementById('invStock').value||0, date:document.getElementById('invDate').value||null,
+    notes:document.getElementById('invNotes').value.trim()
+  };
+  if (editingInvId) {
+    Object.assign(state.inventory.find(x=>x.id===editingInvId), data);
+  } else {
+    state.inventory.push({ id:uid(), ...data });
+  }
+  save(); closeInvModal(); renderInventory(); showToast('✅ Material gespeichert');
+}
+
+function deleteInvItem(id) {
+  if (!confirm('Material löschen?')) return;
+  state.inventory = state.inventory.filter(x=>x.id!==id);
+  save(); renderInventory(); showToast('🗑️ Gelöscht');
+}
+
+// ── MATERIAL IN LOG ──
+function addLogMaterial() {
+  logMaterials.push({ invId:'', qty:0 });
+  renderLogMaterials();
+}
+function removeLogMaterial(i) {
+  logMaterials.splice(i,1);
+  renderLogMaterials();
+}
+function renderLogMaterials() {
+  const el = document.getElementById('logMaterialList');
+  if (!logMaterials.length) { el.innerHTML='<div style="color:var(--text2);font-size:0.8rem;padding:8px 0">Kein Material ausgewählt</div>'; return; }
+  const opts = state.inventory.map(inv => `<option value="${inv.id}">${inv.name} (${(inv.stock||0).toLocaleString('de-DE',{maximumFractionDigits:1})} ${inv.unit} verfügbar)</option>`).join('');
+  el.innerHTML = logMaterials.map((m,i) => {
+    const inv = state.inventory.find(x=>x.id===m.invId);
+    const unitPrice = (inv && inv.qty>0 && inv.price>0) ? (inv.price/inv.qty) : 0;
+    const cost = unitPrice * (m.qty||0);
+    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;background:var(--surface2);border-radius:8px;padding:10px">
+      <div style="flex:1;min-width:0">
+        <select onchange="logMaterials[${i}].invId=this.value;renderLogMaterials()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:0.85rem;min-height:40px">
+          <option value="">— Material wählen —</option>${opts}
+        </select>
+        <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+          <input type="number" inputmode="decimal" step="0.1" placeholder="Menge" value="${m.qty||''}" onchange="logMaterials[${i}].qty=+this.value;renderLogMaterials()" style="width:80px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:0.85rem;min-height:36px" />
+          <span style="font-size:0.8rem;color:var(--text2)">${inv?inv.unit:'?'}</span>
+          ${cost ? `<span style="font-size:0.8rem;color:var(--accent);font-weight:600;margin-left:auto">${cost.toLocaleString('de-DE',{minimumFractionDigits:2})} €</span>` : ''}
+        </div>
+      </div>
+      <button class="btn-icon" onclick="removeLogMaterial(${i})">✕</button>
+    </div>`;
+  }).join('');
+  // Fix selected values
+  const selects = el.querySelectorAll('select');
+  logMaterials.forEach((m,i) => { if(selects[i]) selects[i].value = m.invId; });
 }
 
 // ── KM AKTUALISIEREN ──
