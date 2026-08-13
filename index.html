@@ -830,6 +830,17 @@ function renderStats() {
     ${(bike?.huDate || bike?.noHu) ? `<div class="stat-card" style="grid-column:span 2">${huBadge(bike)}<div class="stat-label" style="margin-top:4px">HU / TÜV</div></div>` : ''}
   `;
 }
+function renderLogMats(materials) {
+  if (!materials || !materials.length) return '';
+  var parts = [];
+  for (var i = 0; i < materials.length; i++) {
+    var m = materials[i];
+    var costStr = m.cost ? m.cost.toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €' : '';
+    parts.push(m.name + ': ' + m.qty + ' ' + m.unit + (costStr ? ' (' + costStr + ')' : ''));
+  }
+  return '<div style="margin-top:4px;font-size:0.78rem;color:var(--text2)">📦 ' + parts.join(', ') + '</div>';
+}
+
 function renderLogbook() {
   const el=document.getElementById('logbookContent');
   if (!state.selectedBike) { el.innerHTML='<div class="empty-state"><div class="icon">🏍️</div><p>Wähle ein Motorrad.</p></div>'; return; }
@@ -845,7 +856,7 @@ function renderLogbook() {
         <div class="log-km">📍 ${(log.km||0).toLocaleString('de-DE')} km${log.cost?` · 💶 ${log.cost.toLocaleString('de-DE',{minimumFractionDigits:2})} €`:''}</div>
         ${log.workshop?`<div style="color:var(--text2);font-size:0.8rem">🔧 ${log.workshop}</div>`:''}
         ${log.notes?`<div class="log-notes">${log.notes}</div>`:''}
-        ${(log.materials&&log.materials.length)?`<div style="margin-top:4px;font-size:0.78rem;color:var(--text2)">📦 ${log.materials.map(m=>`${m.name}: ${m.qty} ${m.unit} (${m.cost.toLocaleString('de-DE',{minimumFractionDigits:2})} €)`).join(', ')}</div>`:''}
+        ${renderLogMats(log.materials)}
         ${photos?`<div class="log-photos">${photos}</div>`:''}
       </div>
       <button class="btn-icon" onclick="deleteLog('${log.id}')">🗑️</button>
@@ -1202,28 +1213,36 @@ function removeLogMaterial(i) {
 function renderLogMaterials() {
   const el = document.getElementById('logMaterialList');
   if (!logMaterials.length) { el.innerHTML='<div style="color:var(--text2);font-size:0.8rem;padding:8px 0">Kein Material ausgewählt</div>'; return; }
-  const opts = state.inventory.map(inv => `<option value="${inv.id}">${inv.name} (${(inv.stock||0).toLocaleString('de-DE',{maximumFractionDigits:1})} ${inv.unit} verfügbar)</option>`).join('');
-  el.innerHTML = logMaterials.map((m,i) => {
-    const inv = state.inventory.find(x=>x.id===m.invId);
-    const unitPrice = (inv && inv.qty>0 && inv.price>0) ? (inv.price/inv.qty) : 0;
-    const cost = unitPrice * (m.qty||0);
-    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;background:var(--surface2);border-radius:8px;padding:10px">
-      <div style="flex:1;min-width:0">
-        <select onchange="logMaterials[${i}].invId=this.value;renderLogMaterials()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:0.85rem;min-height:40px">
-          <option value="">— Material wählen —</option>${opts}
-        </select>
-        <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
-          <input type="number" inputmode="decimal" step="0.1" placeholder="Menge" value="${m.qty||''}" onchange="logMaterials[${i}].qty=+this.value;renderLogMaterials()" style="width:80px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:0.85rem;min-height:36px" />
-          <span style="font-size:0.8rem;color:var(--text2)">${inv?inv.unit:'?'}</span>
-          ${cost ? `<span style="font-size:0.8rem;color:var(--accent);font-weight:600;margin-left:auto">${cost.toLocaleString('de-DE',{minimumFractionDigits:2})} €</span>` : ''}
-        </div>
-      </div>
-      <button class="btn-icon" onclick="removeLogMaterial(${i})">✕</button>
-    </div>`;
-  }).join('');
+  var opts = '';
+  for (var j = 0; j < state.inventory.length; j++) {
+    var inv2 = state.inventory[j];
+    var stockStr = (inv2.stock||0).toLocaleString('de-DE',{maximumFractionDigits:1});
+    opts += '<option value="'+inv2.id+'">'+inv2.name+' ('+stockStr+' '+inv2.unit+' verfügbar)</option>';
+  }
+  var html = '';
+  for (var i = 0; i < logMaterials.length; i++) {
+    var m = logMaterials[i];
+    var inv = state.inventory.find(function(x){return x.id===m.invId;});
+    var unitPrice = (inv && inv.qty>0 && inv.price>0) ? (inv.price/inv.qty) : 0;
+    var cost = unitPrice * (m.qty||0);
+    var costHtml = cost ? '<span style="font-size:0.8rem;color:var(--accent);font-weight:600;margin-left:auto">'+cost.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</span>' : '';
+    var unitLabel = inv ? inv.unit : '?';
+    html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;background:var(--surface2);border-radius:8px;padding:10px">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<select onchange="logMaterials['+i+'].invId=this.value;renderLogMaterials()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:0.85rem;min-height:40px">';
+    html += '<option value="">— Material wählen —</option>'+opts+'</select>';
+    html += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center">';
+    html += '<input type="number" inputmode="decimal" step="0.1" placeholder="Menge" value="'+(m.qty||'')+'" onchange="logMaterials['+i+'].qty=+this.value;renderLogMaterials()" style="width:80px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:0.85rem;min-height:36px" />';
+    html += '<span style="font-size:0.8rem;color:var(--text2)">'+unitLabel+'</span>';
+    html += costHtml;
+    html += '</div></div>';
+    html += '<button class="btn-icon" onclick="removeLogMaterial('+i+')">✕</button>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
   // Fix selected values
-  const selects = el.querySelectorAll('select');
-  logMaterials.forEach((m,i) => { if(selects[i]) selects[i].value = m.invId; });
+  var selects = el.querySelectorAll('select');
+  logMaterials.forEach(function(m,i) { if(selects[i]) selects[i].value = m.invId; });
 }
 
 // ── KM AKTUALISIEREN ──
