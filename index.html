@@ -235,20 +235,6 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 </head>
 <body>
 <div id="toast"></div>
-<div id="errorBox" style="display:none;position:fixed;top:0;left:0;right:0;background:#e74c3c;color:#fff;padding:16px;font-size:0.85rem;z-index:9999;font-family:monospace;white-space:pre-wrap;max-height:40vh;overflow:auto"></div>
-<script>
-window.onerror = function(msg, url, line, col, err) {
-  var box = document.getElementById('errorBox');
-  box.style.display = 'block';
-  box.textContent = 'JS FEHLER:\n' + msg + '\nZeile: ' + line + ', Spalte: ' + col + '\n' + (err && err.stack ? err.stack : '');
-  return false;
-};
-window.addEventListener('unhandledrejection', function(e) {
-  var box = document.getElementById('errorBox');
-  box.style.display = 'block';
-  box.textContent = 'PROMISE FEHLER:\n' + (e.reason ? e.reason.message || e.reason : 'unbekannt');
-});
-</script>
 
 <!-- ── MODAL: Motorrad ── -->
 <div class="modal-overlay" id="bikeModal">
