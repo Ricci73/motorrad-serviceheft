@@ -253,6 +253,10 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <div class="form-group"><label>Kennzeichen</label><input id="bPlate" placeholder="M-AB 1234" /></div>
       <div class="form-group"><label>Emoji</label><input id="bIcon" placeholder="🏍️" maxlength="4" /></div>
     </div>
+    <div class="form-row">
+      <div class="form-group"><label>FIN / VIN</label><input id="bFin" placeholder="WB10A0200LZxxxxxx" autocomplete="off" /></div>
+      <div class="form-group"><label>Erstzulassung</label><input id="bFirstReg" type="date" /></div>
+    </div>
     <div class="form-group"><label>Notizen</label><textarea id="bNotes" placeholder="Sonderausstattung…"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeBikeModal()">Abbrechen</button>
@@ -316,6 +320,27 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeLogModal()">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveLog()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Eintrag bearbeiten ── -->
+<div class="modal-overlay" id="editLogModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title">Eintrag bearbeiten</div><button class="btn-icon" onclick="closeEditLogModal()">✕</button></div>
+    <div class="form-row">
+      <div class="form-group"><label>Datum</label><input id="elDate" type="date" /></div>
+      <div class="form-group"><label>km-Stand</label><input id="elKm" type="number" inputmode="numeric" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Kosten (€)</label><input id="elCost" type="number" inputmode="decimal" step="0.01" placeholder="0.00" /></div>
+      <div class="form-group"><label>Werkstatt</label><input id="elWorkshop" /></div>
+    </div>
+    <div class="form-group"><label>Notizen</label><textarea id="elNotes"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeEditLogModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveEditLog()">💾 Speichern</button>
     </div>
   </div>
 </div>
@@ -487,7 +512,8 @@ function renderBikes() {
       <div class="bike-card-icon">${b.icon||'🏍️'}</div>
       <div class="bike-card-body">
         <div class="bike-name">${b.make} ${b.model}</div>
-        <div class="bike-meta">${[b.year, b.plate].filter(Boolean).join(' · ')}</div>
+        <div class="bike-meta">${[b.year, b.plate].filter(Boolean).join(' · ')}${b.firstReg ? ' · EZ: '+new Date(b.firstReg).toLocaleDateString('de-DE') : ''}</div>
+        ${b.fin ? `<div style="color:var(--text2);font-size:0.75rem;margin-bottom:4px">FIN: ${b.fin}</div>` : ''}
         <div class="bike-km">📍 ${(b.km||0).toLocaleString('de-DE')} km</div>
       </div>
       <div class="bike-card-actions">
@@ -513,6 +539,8 @@ function openBikeModal(id) {
   document.getElementById('bKm').value = b?.km||'';
   document.getElementById('bPlate').value = b?.plate||'';
   document.getElementById('bIcon').value = b?.icon||'🏍️';
+  document.getElementById('bFin').value = b?.fin||'';
+  document.getElementById('bFirstReg').value = b?.firstReg||'';
   document.getElementById('bNotes').value = b?.notes||'';
   document.getElementById('bikeModal').classList.add('open');
 }
@@ -521,7 +549,7 @@ function saveBike() {
   const make = document.getElementById('bMake').value.trim();
   const model = document.getElementById('bModel').value.trim();
   if (!make||!model) { showToast('Marke und Modell sind Pflichtfelder','error'); return; }
-  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', notes:document.getElementById('bNotes').value.trim() };
+  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', fin:document.getElementById('bFin').value.trim(), firstReg:document.getElementById('bFirstReg').value||null, notes:document.getElementById('bNotes').value.trim() };
   if (state.editingBikeId) {
     Object.assign(state.bikes.find(x=>x.id===state.editingBikeId), data);
   } else {
@@ -672,6 +700,7 @@ function renderLogbook() {
         ${photos?`<div class="log-photos">${photos}</div>`:''}
       </div>
       <button class="btn-icon" onclick="deleteLog('${log.id}')">🗑️</button>
+      <button class="btn-icon" title="Bearbeiten" onclick="openEditLogModal('${log.id}')">✏️</button>
     </div>`;
   }).join('');
 }
@@ -785,6 +814,31 @@ function showToast(msg,type='success') {
   const t=document.getElementById('toast');
   t.textContent=msg; t.className='show '+type;
   clearTimeout(window._tt); window._tt=setTimeout(()=>{t.className='';},3000);
+}
+
+// ── EDIT LOG ──
+let editingLogId = null;
+function openEditLogModal(id) {
+  const log = (state.logs[state.selectedBike]||[]).find(x=>x.id===id);
+  if (!log) return;
+  editingLogId = id;
+  document.getElementById('elDate').value = log.date||'';
+  document.getElementById('elKm').value = log.km||'';
+  document.getElementById('elCost').value = log.cost||'';
+  document.getElementById('elWorkshop').value = log.workshop||'';
+  document.getElementById('elNotes').value = log.notes||'';
+  document.getElementById('editLogModal').classList.add('open');
+}
+function closeEditLogModal() { document.getElementById('editLogModal').classList.remove('open'); editingLogId=null; }
+function saveEditLog() {
+  const log = (state.logs[state.selectedBike]||[]).find(x=>x.id===editingLogId);
+  if (!log) return;
+  log.date = document.getElementById('elDate').value || log.date;
+  log.km = +document.getElementById('elKm').value || log.km;
+  log.cost = +document.getElementById('elCost').value || 0;
+  log.workshop = document.getElementById('elWorkshop').value.trim();
+  log.notes = document.getElementById('elNotes').value.trim();
+  save(); closeEditLogModal(); renderStats(); renderLogbook(); showToast('✅ Eintrag aktualisiert');
 }
 
 // ── INIT ──
