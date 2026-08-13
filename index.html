@@ -1185,7 +1185,7 @@ function openInvModal(id) {
   document.getElementById('invCategory').value = item?.category||'Öl';
   document.getElementById('invQty').value = item?.qty||'';
   document.getElementById('invPrice').value = item?.price||'';
-  document.getElementById('invStock').value = item?.stock??item?.qty||'';
+  document.getElementById('invStock').value = (item?.stock != null ? item.stock : item?.qty) || '';
   document.getElementById('invDate').value = item?.date||new Date().toISOString().split('T')[0];
   document.getElementById('invNotes').value = item?.notes||'';
   document.getElementById('invModal').classList.add('open');
