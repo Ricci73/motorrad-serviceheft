@@ -583,20 +583,23 @@ function dbLoad() {
 
 async function load() {
   // Try IndexedDB first
-  let data = await dbLoad();
-  if (data && data.bikes && data.bikes.length) {
-    state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[];
-  } else {
-    // Fallback: migrate from localStorage
-    try {
-      const d = localStorage.getItem('moto_serviceheft');
-      if (d) {
-        const p = JSON.parse(d);
-        state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[];
-        dbSave(); // migrate to IndexedDB
-      }
-    } catch(e) {}
-  }
+  try {
+    let data = await dbLoad();
+    if (data && data.bikes && data.bikes.length) {
+      state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[];
+      state.selectedBike = state.bikes[0]?.id || null;
+      return;
+    }
+  } catch(e) {}
+  // Fallback: localStorage
+  try {
+    const d = localStorage.getItem('moto_serviceheft');
+    if (d) {
+      const p = JSON.parse(d);
+      state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[];
+      dbSave(); // migrate to IndexedDB
+    }
+  } catch(e) {}
   if (!state.bikes.length) addSampleData();
   else state.selectedBike = state.bikes[0]?.id || null;
 }
@@ -1313,8 +1316,18 @@ function saveEditLog() {
 }
 
 // ── INIT ──
-(async () => {
-  await load();
+(async function() {
+  try {
+    await load();
+  } catch(e) {
+    // If async load fails, try sync localStorage fallback
+    try {
+      const d = localStorage.getItem('moto_serviceheft');
+      if (d) { const p = JSON.parse(d); state.bikes=p.bikes||[]; state.maintenance=p.maintenance||{}; state.logs=p.logs||{}; state.inventory=p.inventory||[]; }
+    } catch(e2) {}
+    if (!state.bikes.length) addSampleData();
+    else state.selectedBike = state.bikes[0]?.id || null;
+  }
   renderBikes();
   renderBikeSelectors();
 })();
