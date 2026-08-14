@@ -443,7 +443,10 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 <!-- ── HEADER ── -->
 <header>
   <h1>🏍️ BikerDesk</h1>
-  <button class="btn btn-secondary btn-sm" onclick="openDataModal()">📦 Daten</button>
+  <div style="display:flex;gap:6px">
+    <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
+    <button class="btn btn-secondary btn-sm" onclick="openDataModal()">📦 Daten</button>
+  </div>
 </header>
 
 <!-- ── PAGES ── -->
@@ -527,6 +530,39 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <button class="btn btn-secondary" onclick="closeInvModal()">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveInvItem()">💾 Speichern</button>
     </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Hilfe ── -->
+<div class="modal-overlay" id="helpModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title">❓ BikerDesk Hilfe</div><button class="btn-icon" onclick="closeHelpModal()">✕</button></div>
+    <div id="helpContent" style="font-size:0.88rem;line-height:1.6">
+      <div class="section-label">🏍️ MOTORRÄDER</div>
+      <p style="margin-bottom:12px">Tippe <strong>+</strong> um ein Motorrad anzulegen. Auf der Karte siehst du km-Stand (antippbar zum Aktualisieren) und HU-Status. Unter ✏️ kannst du FIN, Erstzulassung und HU-Datum pflegen.</p>
+
+      <div class="section-label">🔧 WARTUNGSPLAN</div>
+      <p style="margin-bottom:12px">Lege Wartungspositionen mit km- und/oder Monats-Intervall an. Die Ampel zeigt automatisch was fällig ist. Tippe ✔️ um eine Position als erledigt zu markieren.</p>
+
+      <div class="section-label">📋 SERVICEHEFT</div>
+      <p style="margin-bottom:12px">Jeden Service als Eintrag dokumentieren — mit Datum, km, Kosten, Werkstatt, Fotos (📸 Kamera oder 🖼️ Galerie). Material aus dem Lager hinzufügen → Kosten werden automatisch berechnet. Einträge nachträglich per ✏️ bearbeiten.</p>
+
+      <div class="section-label">📦 MATERIALLAGER</div>
+      <p style="margin-bottom:12px">Öl, Filter, Bremsbeläge etc. mit Kaufmenge und Preis anlegen. Beim Service wird der Bestand automatisch reduziert und der Stückpreis berechnet.</p>
+
+      <div class="section-label">🏁 TRACKDAYS</div>
+      <p style="margin-bottom:12px">Rennstrecken-Termine planen. Jeder Trackday hat eine Checkliste (55 Punkte, erweiterbar). Vorlagen speichern für verschiedene Strecken. Per 📅 .ics in den iPhone-Kalender exportieren (Erinnerung 3+1 Tage vorher).</p>
+
+      <div class="section-label">📤 DATEN SICHERN</div>
+      <p style="margin-bottom:12px"><strong>Wichtig:</strong> Regelmäßig 📦 Daten → JSON-Backup exportieren! Die App speichert lokal im Browser — bei Cache-Löschung gehen Daten verloren ohne Backup.</p>
+
+      <div style="margin-top:16px;padding:12px;background:var(--surface2);border-radius:10px;font-size:0.82rem;color:var(--text2)">
+        BikerDesk v2.0 · Keine Registrierung · Kein Server · 100% offline<br>
+        Probleme? App-Icon löschen und neu installieren (Safari → Teilen → Zum Home-Bildschirm)
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeHelpModal()">Schließen</button></div>
   </div>
 </div>
 
@@ -1413,6 +1449,10 @@ function saveEditLog() {
   log.photos = [...editPendingPhotos];
   save(); closeEditLogModal(); renderStats(); renderLogbook(); showToast('✅ Eintrag aktualisiert');
 }
+
+// ── HELP ──
+function openHelpModal() { document.getElementById('helpModal').classList.add('open'); }
+function closeHelpModal() { document.getElementById('helpModal').classList.remove('open'); }
 
 // ── TRACKDAYS ──
 var DEFAULT_CHECKLIST = [
