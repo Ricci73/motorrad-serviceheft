@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Serviceheft" />
+<meta name="apple-mobile-web-app-title" content="BikerDesk" />
 <meta name="theme-color" content="#0f0f13" />
-<title>🏍️ Motorrad Serviceheft</title>
+<title>🏍️ BikerDesk</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 :root {
@@ -442,7 +442,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ Serviceheft</h1>
+  <h1>🏍️ BikerDesk</h1>
   <button class="btn btn-secondary btn-sm" onclick="openDataModal()">📦 Daten</button>
 </header>
 
@@ -483,6 +483,20 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
     <div id="inventoryContent"></div>
   </div>
 
+  <div class="page" id="page-trackdays">
+    <div class="page-header">
+      <div class="page-title">🏁 Trackdays</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="exportTrackdayICS()">📅 .ics</button>
+        <button class="btn btn-primary btn-sm" onclick="openTrackdayModal()">+ Trackday</button>
+      </div>
+    </div>
+    <div class="section-label">KOMMENDE</div>
+    <div id="trackdayUpcoming"></div>
+    <div class="section-label" style="margin-top:20px">VERGANGENE</div>
+    <div id="trackdayPast"></div>
+  </div>
+
 </div>
 <button class="fab" id="fab" onclick="onFabClick()">+</button>
 
@@ -516,10 +530,71 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
   </div>
 </div>
 
+<!-- ── MODAL: Trackday ── -->
+<div class="modal-overlay" id="trackdayModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="tdModalTitle">Trackday hinzufügen</div><button class="btn-icon" onclick="closeTrackdayModal()">✕</button></div>
+    <div class="form-row">
+      <div class="form-group"><label>Datum *</label><input id="tdDate" type="date" /></div>
+      <div class="form-group"><label>Status</label>
+        <select id="tdStatus"><option>Geplant</option><option>Gebucht</option><option>Erledigt</option><option>Storniert</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Strecke *</label><input id="tdTrack" placeholder="z.B. Nürburgring GP, Hockenheim…" /></div>
+    <div class="form-row">
+      <div class="form-group"><label>Veranstalter</label><input id="tdOrganizer" placeholder="Speer Racing, HPS…" /></div>
+      <div class="form-group"><label>Gruppe / Level</label><input id="tdGroup" placeholder="Sportfahrer, Einsteiger…" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Motorrad</label><select id="tdBike"><option value="">—</option></select></div>
+      <div class="form-group"><label>Kosten (€)</label><input id="tdCost" type="number" inputmode="decimal" step="0.01" /></div>
+    </div>
+    <div class="form-group"><label>Notizen</label><textarea id="tdNotes" placeholder="Streckenlayout, Tipps, Boxennr…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTrackdayModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveTrackday()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Checkliste ── -->
+<div class="modal-overlay" id="checklistModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="clModalTitle">🏁 Checkliste</div><button class="btn-icon" onclick="closeChecklistModal()">✕</button></div>
+    <div id="checklistContent"></div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <input id="clNewItem" placeholder="Neuen Punkt hinzufügen…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:0.9rem;min-height:44px" />
+      <button class="btn btn-primary btn-sm" onclick="addChecklistItem()">+</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeChecklistModal()">Schließen</button>
+      <button class="btn btn-primary" onclick="saveChecklistAndClose()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Checklisten-Vorlage ── -->
+<div class="modal-overlay" id="templateModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title">📋 Checklisten-Vorlagen</div><button class="btn-icon" onclick="closeTemplateModal()">✕</button></div>
+    <div id="templateContent"></div>
+    <div class="form-group" style="margin-top:12px">
+      <input id="tplName" placeholder="Neue Vorlage speichern als…" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:0.9rem;min-height:44px" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTemplateModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveAsTemplate()">💾 Als Vorlage speichern</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── BOTTOM NAV ── -->
 <nav class="bottom-nav">
   <button class="bottom-nav-item active" id="nav-bikes" onclick="showPage('bikes')">
-    <span class="nav-icon">🏍️</span>Motorräder
+    <span class="nav-icon">🏍️</span>Bikes
   </button>
   <button class="bottom-nav-item" id="nav-maintenance" onclick="showPage('maintenance')">
     <span class="nav-icon">🔧</span>Wartung
@@ -530,17 +605,20 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
   <button class="bottom-nav-item" id="nav-inventory" onclick="showPage('inventory')">
     <span class="nav-icon">📦</span>Lager
   </button>
+  <button class="bottom-nav-item" id="nav-trackdays" onclick="showPage('trackdays')">
+    <span class="nav-icon">🏁</span>Track
+  </button>
 </nav>
 
 
 <script>
 // ── DATA ──
-let state = { bikes:[], maintenance:{}, logs:{}, inventory:[], selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
+let state = { bikes:[], maintenance:{}, logs:{}, inventory:[], trackdays:[], checklistTemplates:[], selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
 
 function save() {
   // Dual-write: IndexedDB (primary) + localStorage (fallback)
   dbSave();
-  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory })); } catch(e) {}
+  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, checklistTemplates:state.checklistTemplates })); } catch(e) {}
 }
 
 // ── IndexedDB ──
@@ -565,7 +643,7 @@ function dbSave() {
   dbOpen().then(db => {
     const tx = db.transaction('appdata', 'readwrite');
     const store = tx.objectStore('appdata');
-    store.put({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory }, 'state');
+    store.put({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, checklistTemplates:state.checklistTemplates }, 'state');
   }).catch(()=>{});
 }
 
@@ -586,7 +664,7 @@ async function load() {
   try {
     let data = await dbLoad();
     if (data && data.bikes && data.bikes.length) {
-      state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[];
+      state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[]; state.trackdays = data.trackdays||[]; state.checklistTemplates = data.checklistTemplates||[];
       state.selectedBike = state.bikes[0]?.id || null;
       return;
     }
@@ -596,7 +674,7 @@ async function load() {
     const d = localStorage.getItem('moto_serviceheft');
     if (d) {
       const p = JSON.parse(d);
-      state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[];
+      state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[]; state.trackdays = p.trackdays||[]; state.checklistTemplates = p.checklistTemplates||[];
       dbSave(); // migrate to IndexedDB
     }
   } catch(e) {}
@@ -625,7 +703,7 @@ function showPage(name) {
   state.currentPage = name;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  ['bikes','maintenance','logbook','inventory'].forEach(n => {
+  ['bikes','maintenance','logbook','inventory','trackdays'].forEach(n => {
     document.getElementById('nav-'+n).classList.toggle('active', n===name);
   });
   const fab = document.getElementById('fab');
@@ -634,12 +712,14 @@ function showPage(name) {
   if (name==='maintenance') { renderBikeSelectors(); renderMaintenance(); }
   if (name==='logbook') { renderBikeSelectors(); renderStats(); renderLogbook(); }
   if (name==='inventory') renderInventory();
+  if (name==='trackdays') renderTrackdays();
 }
 function onFabClick() {
   if (state.currentPage==='bikes') openBikeModal(null);
   else if (state.currentPage==='maintenance') openMaintenanceModal();
   else if (state.currentPage==='logbook') openLogModal();
   else if (state.currentPage==='inventory') openInvModal();
+  else if (state.currentPage==='trackdays') openTrackdayModal();
 }
 
 // ── BIKES ──
@@ -957,7 +1037,7 @@ function openPhoto(src) { document.getElementById('photoModalImg').src=src; docu
 function openDataModal() { document.getElementById('dataModal').classList.add('open'); }
 function closeDataModal() { document.getElementById('dataModal').classList.remove('open'); }
 function exportJSON() {
-  const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs,inventory:state.inventory};
+  const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs,inventory:state.inventory,trackdays:state.trackdays,checklistTemplates:state.checklistTemplates};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=`motorrad-backup-${new Date().toISOString().split('T')[0]}.json`;
@@ -986,7 +1066,7 @@ function importJSON(event) {
       const mode=document.querySelector('input[name="importMode"]:checked')?.value||'replace';
       if (mode==='replace') {
         if (!confirm(`Alle Daten ersetzen? Backup enthält ${data.bikes.length} Motorrad/Motorräder.`)) return;
-        state.bikes=data.bikes; state.maintenance=data.maintenance||{}; state.logs=data.logs||{}; state.inventory=data.inventory||[];
+        state.bikes=data.bikes; state.maintenance=data.maintenance||{}; state.logs=data.logs||{}; state.inventory=data.inventory||[]; state.trackdays=data.trackdays||[]; state.checklistTemplates=data.checklistTemplates||[];
         state.selectedBike=state.bikes[0]?.id||null;
         showToast(`✅ ${data.bikes.length} Motorrad/Motorräder importiert`);
       } else {
@@ -1332,6 +1412,290 @@ function saveEditLog() {
   log.notes = document.getElementById('elNotes').value.trim();
   log.photos = [...editPendingPhotos];
   save(); closeEditLogModal(); renderStats(); renderLogbook(); showToast('✅ Eintrag aktualisiert');
+}
+
+// ── TRACKDAYS ──
+var DEFAULT_CHECKLIST = [
+  {cat:'Kleidung', items:['Motorrad Socken','Unterwäsche','Handschuhe 2x','Kombi','Rückenprotektor','Brustprotektor','Airbag Weste','Helm','Ersatzhelm','Stiefel','Badelatschen','Jacke','Hygiene']},
+  {cat:'Dokumente', items:['Fahrzeugschein','Führerschein','Anmeldeunterlagen Veranstalter','Anmeldeunterlagen Strecke','Zweitschlüssel Motorrad','Zweitschlüssel Hänger','SD Karten']},
+  {cat:'Technik', items:['Bremsbeläge','Bremsenreiniger','Helmreiniger','Lappen','Batterieladegerät','Ladegeräte Handy','Motoröl','Ketten Öl','Reifenwärmer','Druckluftmessgerät','DB Messgerät','Kompressor','Werkzeug (Messer, 32 Nuss, Nusskasten, Maulschlüssel, Zange, Drehmoment)','Benzinkanister','Benzinkanne','Kabelbinder','Klebeband','Kabeltrommel','Verlängerungskabel']},
+  {cat:'Infrastruktur', items:['Geschirr','Stiefel Trockner','Lüfter','Papierrolle','Klapptisch','Klappstuhl','Biertisch','Bierbank','Zelt','Teppiche','Kombiständer','Helmschale','Zentralständer','Motorrad Heber Vorne/Hinten','Lampen','Taschenlampe','Thermometer','Getränke','Kühlbox']}
+];
+
+var editingTrackdayId = null;
+var currentChecklistTdId = null;
+
+function renderTrackdays() {
+  var tds = state.trackdays || [];
+  var now = new Date().toISOString().split('T')[0];
+  var upcoming = tds.filter(function(t){ return t.date >= now && t.status !== 'Storniert'; }).sort(function(a,b){ return a.date > b.date ? 1 : -1; });
+  var past = tds.filter(function(t){ return t.date < now || t.status === 'Erledigt' || t.status === 'Storniert'; }).sort(function(a,b){ return a.date > b.date ? -1 : 1; });
+
+  document.getElementById('trackdayUpcoming').innerHTML = upcoming.length ? upcoming.map(renderTdCard).join('') : '<div class="empty-state"><div class="icon">🏁</div><p>Keine kommenden Trackdays</p></div>';
+  document.getElementById('trackdayPast').innerHTML = past.length ? past.map(renderTdCard).join('') : '<div style="color:var(--text2);font-size:0.85rem;padding:12px">Noch keine vergangenen Trackdays</div>';
+}
+
+function renderTdCard(td) {
+  var d = new Date(td.date);
+  var dateStr = d.toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+  var statusColors = {Geplant:'var(--text2)',Gebucht:'var(--success)',Erledigt:'var(--accent)',Storniert:'var(--danger)'};
+  var statusIcons = {Geplant:'📋',Gebucht:'✅',Erledigt:'🏁',Storniert:'❌'};
+  var bike = td.bikeId ? state.bikes.find(function(b){return b.id===td.bikeId;}) : null;
+  var bikeName = bike ? bike.make + ' ' + bike.model : '';
+  var cl = td.checklist || [];
+  var checked = cl.filter(function(c){return c.done;}).length;
+  var total = cl.length;
+
+  return '<div class="maint-item" style="border-left-color:' + (statusColors[td.status]||'var(--accent)') + '">' +
+    '<div class="maint-item-body">' +
+      '<div class="maint-name">' + td.track + ' <span style="font-size:0.75rem;color:' + (statusColors[td.status]||'var(--text2)') + '">' + (statusIcons[td.status]||'') + ' ' + td.status + '</span></div>' +
+      '<div class="maint-details">' +
+        '📅 ' + dateStr +
+        (td.organizer ? ' · ' + td.organizer : '') +
+        (td.group ? ' · ' + td.group : '') +
+        (bikeName ? '<br>🏍️ ' + bikeName : '') +
+        (td.cost ? ' · 💶 ' + (+td.cost).toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €' : '') +
+        (total > 0 ? '<br>📋 Checkliste: ' + checked + '/' + total + (checked===total && total>0 ? ' ✅' : '') : '') +
+        (td.notes ? '<br><span style="color:var(--text2)">' + td.notes + '</span>' : '') +
+      '</div>' +
+    '</div>' +
+    '<div class="maint-actions" style="flex-direction:column">' +
+      '<button class="btn-icon" title="Checkliste" onclick="openChecklistForTd(\'' + td.id + '\')">📋</button>' +
+      '<button class="btn-icon" title="Bearbeiten" onclick="openTrackdayModal(\'' + td.id + '\')">✏️</button>' +
+      '<button class="btn-icon" title="Löschen" onclick="deleteTrackday(\'' + td.id + '\')">🗑️</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function openTrackdayModal(id) {
+  editingTrackdayId = id || null;
+  var td = id ? (state.trackdays||[]).find(function(x){return x.id===id;}) : null;
+  document.getElementById('tdModalTitle').textContent = id ? 'Trackday bearbeiten' : 'Trackday hinzufügen';
+  document.getElementById('tdDate').value = td ? td.date : new Date().toISOString().split('T')[0];
+  document.getElementById('tdStatus').value = td ? td.status : 'Geplant';
+  document.getElementById('tdTrack').value = td ? td.track : '';
+  document.getElementById('tdOrganizer').value = td ? td.organizer : '';
+  document.getElementById('tdGroup').value = td ? td.group : '';
+  document.getElementById('tdCost').value = td ? td.cost : '';
+  document.getElementById('tdNotes').value = td ? td.notes : '';
+  // Populate bike select
+  var sel = document.getElementById('tdBike');
+  sel.innerHTML = '<option value="">—</option>';
+  state.bikes.forEach(function(b) {
+    var opt = document.createElement('option');
+    opt.value = b.id;
+    opt.textContent = b.icon + ' ' + b.make + ' ' + b.model;
+    sel.appendChild(opt);
+  });
+  if (td && td.bikeId) sel.value = td.bikeId;
+  document.getElementById('trackdayModal').classList.add('open');
+}
+function closeTrackdayModal() { document.getElementById('trackdayModal').classList.remove('open'); editingTrackdayId = null; }
+
+function saveTrackday() {
+  var date = document.getElementById('tdDate').value;
+  var track = document.getElementById('tdTrack').value.trim();
+  if (!date || !track) { showToast('Datum und Strecke sind Pflicht','error'); return; }
+  if (!state.trackdays) state.trackdays = [];
+  var data = {
+    date: date, track: track, status: document.getElementById('tdStatus').value,
+    organizer: document.getElementById('tdOrganizer').value.trim(),
+    group: document.getElementById('tdGroup').value.trim(),
+    bikeId: document.getElementById('tdBike').value || null,
+    cost: +document.getElementById('tdCost').value || 0,
+    notes: document.getElementById('tdNotes').value.trim()
+  };
+  if (editingTrackdayId) {
+    var td = state.trackdays.find(function(x){return x.id===editingTrackdayId;});
+    if (td) { for (var k in data) td[k] = data[k]; }
+  } else {
+    data.id = uid();
+    data.checklist = buildDefaultChecklist();
+    state.trackdays.push(data);
+  }
+  save(); closeTrackdayModal(); renderTrackdays(); showToast('✅ Trackday gespeichert');
+}
+
+function deleteTrackday(id) {
+  if (!confirm('Trackday löschen?')) return;
+  state.trackdays = (state.trackdays||[]).filter(function(x){return x.id!==id;});
+  save(); renderTrackdays(); showToast('🗑️ Gelöscht');
+}
+
+function buildDefaultChecklist() {
+  var cl = [];
+  DEFAULT_CHECKLIST.forEach(function(cat) {
+    cat.items.forEach(function(item) {
+      cl.push({cat: cat.cat, name: item, done: false});
+    });
+  });
+  return cl;
+}
+
+// ── CHECKLIST ──
+function openChecklistForTd(tdId) {
+  currentChecklistTdId = tdId;
+  var td = (state.trackdays||[]).find(function(x){return x.id===tdId;});
+  if (!td) return;
+  if (!td.checklist || !td.checklist.length) {
+    td.checklist = buildDefaultChecklist();
+    save();
+  }
+  document.getElementById('clModalTitle').textContent = '📋 ' + td.track + ' — Checkliste';
+  renderChecklist(td.checklist);
+  document.getElementById('checklistModal').classList.add('open');
+}
+function closeChecklistModal() { document.getElementById('checklistModal').classList.remove('open'); currentChecklistTdId = null; }
+
+function renderChecklist(cl) {
+  var cats = [];
+  var catMap = {};
+  cl.forEach(function(item, idx) {
+    if (!catMap[item.cat]) { catMap[item.cat] = []; cats.push(item.cat); }
+    catMap[item.cat].push({item:item, idx:idx});
+  });
+  var html = '';
+  cats.forEach(function(cat) {
+    var items = catMap[cat];
+    var done = items.filter(function(x){return x.item.done;}).length;
+    html += '<div class="section-label" style="margin-top:12px">' + cat + ' (' + done + '/' + items.length + ')</div>';
+    items.forEach(function(entry) {
+      var i = entry.idx;
+      var item = entry.item;
+      html += '<label style="display:flex;align-items:center;gap:10px;padding:8px 4px;min-height:44px;cursor:pointer;border-bottom:1px solid var(--border)">';
+      html += '<input type="checkbox" ' + (item.done?'checked':'') + ' onchange="toggleCheckItem('+i+')" style="width:20px;height:20px;accent-color:var(--accent);flex-shrink:0" />';
+      html += '<span style="flex:1;font-size:0.9rem;' + (item.done?'text-decoration:line-through;color:var(--text2)':'') + '">' + item.name + '</span>';
+      html += '<button class="btn-icon" style="min-width:32px;min-height:32px;padding:4px" onclick="event.preventDefault();removeCheckItem('+i+')">✕</button>';
+      html += '</label>';
+    });
+  });
+  document.getElementById('checklistContent').innerHTML = html;
+}
+
+function toggleCheckItem(idx) {
+  var td = (state.trackdays||[]).find(function(x){return x.id===currentChecklistTdId;});
+  if (!td || !td.checklist[idx]) return;
+  td.checklist[idx].done = !td.checklist[idx].done;
+  save(); renderChecklist(td.checklist); renderTrackdays();
+}
+
+function removeCheckItem(idx) {
+  var td = (state.trackdays||[]).find(function(x){return x.id===currentChecklistTdId;});
+  if (!td) return;
+  td.checklist.splice(idx, 1);
+  save(); renderChecklist(td.checklist);
+}
+
+function addChecklistItem() {
+  var input = document.getElementById('clNewItem');
+  var name = input.value.trim();
+  if (!name) return;
+  var td = (state.trackdays||[]).find(function(x){return x.id===currentChecklistTdId;});
+  if (!td) return;
+  // Add to last category or 'Sonstiges'
+  var lastCat = td.checklist.length > 0 ? td.checklist[td.checklist.length-1].cat : 'Sonstiges';
+  td.checklist.push({cat: lastCat, name: name, done: false});
+  input.value = '';
+  save(); renderChecklist(td.checklist);
+}
+
+function saveChecklistAndClose() {
+  save(); closeChecklistModal(); renderTrackdays(); showToast('✅ Checkliste gespeichert');
+}
+
+// ── TRACKDAY TEMPLATES ──
+function openTemplateModal() {
+  renderTemplates();
+  document.getElementById('templateModal').classList.add('open');
+}
+function closeTemplateModal() { document.getElementById('templateModal').classList.remove('open'); }
+
+function renderTemplates() {
+  var tpls = state.checklistTemplates || [];
+  var html = '';
+  if (!tpls.length) {
+    html = '<div style="color:var(--text2);font-size:0.85rem;padding:12px">Noch keine Vorlagen gespeichert.</div>';
+  } else {
+    tpls.forEach(function(tpl, i) {
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:8px">';
+      html += '<span style="flex:1;font-weight:600">' + tpl.name + ' <span style="font-weight:400;color:var(--text2);font-size:0.8rem">(' + tpl.items.length + ' Punkte)</span></span>';
+      html += '<button class="btn btn-sm btn-primary" onclick="applyTemplate('+i+')">Verwenden</button>';
+      html += '<button class="btn-icon" onclick="deleteTemplate('+i+')">🗑️</button>';
+      html += '</div>';
+    });
+  }
+  document.getElementById('templateContent').innerHTML = html;
+}
+
+function saveAsTemplate() {
+  var name = document.getElementById('tplName').value.trim();
+  if (!name) { showToast('Vorlagenname eingeben','error'); return; }
+  var td = (state.trackdays||[]).find(function(x){return x.id===currentChecklistTdId;});
+  if (!td || !td.checklist) { showToast('Keine Checkliste vorhanden','error'); return; }
+  if (!state.checklistTemplates) state.checklistTemplates = [];
+  state.checklistTemplates.push({
+    name: name,
+    items: td.checklist.map(function(c){return {cat:c.cat, name:c.name};})
+  });
+  save(); document.getElementById('tplName').value = '';
+  showToast('✅ Vorlage "' + name + '" gespeichert');
+  closeTemplateModal();
+}
+
+function applyTemplate(idx) {
+  var tpl = (state.checklistTemplates||[])[idx];
+  if (!tpl) return;
+  var td = (state.trackdays||[]).find(function(x){return x.id===currentChecklistTdId;});
+  if (!td) return;
+  td.checklist = tpl.items.map(function(item){return {cat:item.cat, name:item.name, done:false};});
+  save(); renderChecklist(td.checklist); closeTemplateModal();
+  showToast('✅ Vorlage angewendet');
+}
+
+function deleteTemplate(idx) {
+  if (!confirm('Vorlage löschen?')) return;
+  (state.checklistTemplates||[]).splice(idx, 1);
+  save(); renderTemplates();
+}
+
+// ── TRACKDAY ICS EXPORT ──
+function exportTrackdayICS() {
+  var tds = (state.trackdays||[]).filter(function(t){ return t.status !== 'Storniert' && t.status !== 'Erledigt'; });
+  if (!tds.length) { showToast('Keine aktiven Trackdays','error'); return; }
+  var lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Motorrad Serviceheft//DE','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Trackdays','X-WR-TIMEZONE:Europe/Berlin'];
+  tds.forEach(function(td) {
+    var dtStart = td.date.replace(/-/g,'');
+    var id2 = Math.random().toString(36).substr(2,12) + '@motorrad-serviceheft';
+    var desc = [td.organizer?'Veranstalter: '+td.organizer:'', td.group?'Gruppe: '+td.group:'', td.cost?'Kosten: '+td.cost+' EUR':''].filter(Boolean).join('\\n');
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:'+id2);
+    lines.push('DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z');
+    lines.push('DTSTART;VALUE=DATE:'+dtStart);
+    lines.push('DTEND;VALUE=DATE:'+dtStart);
+    lines.push('SUMMARY:🏁 Trackday: '+td.track);
+    if (desc) lines.push('DESCRIPTION:'+desc);
+    lines.push('LOCATION:'+td.track);
+    // Alarm 3 days before
+    lines.push('BEGIN:VALARM');
+    lines.push('TRIGGER:-P3D');
+    lines.push('ACTION:DISPLAY');
+    lines.push('DESCRIPTION:Trackday in 3 Tagen: '+td.track);
+    lines.push('END:VALARM');
+    // Alarm 1 day before
+    lines.push('BEGIN:VALARM');
+    lines.push('TRIGGER:-P1D');
+    lines.push('ACTION:DISPLAY');
+    lines.push('DESCRIPTION:Trackday morgen: '+td.track+' - Checkliste pruefen!');
+    lines.push('END:VALARM');
+    lines.push('END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  var blob = new Blob([lines.join('\r\n')], {type:'text/calendar;charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'trackdays-' + new Date().toISOString().split('T')[0] + '.ics';
+  a.click();
+  showToast('📅 ' + tds.length + ' Trackday(s) exportiert');
 }
 
 // ── INIT ──
