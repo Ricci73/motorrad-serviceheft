@@ -10,6 +10,7 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 
 ### 🏍️ Motorräder
 - Mehrere Motorräder verwalten (Marke, Modell, Baujahr, km-Stand, Kennzeichen, FIN/VIN, Erstzulassung)
+- **km-Verlauf** mit SVG-Graph — zeigt km/Monat, Gesamtkilometer und Timeline
 - km-Stand mit Datum — schnelle Aktualisierung direkt von der Karte
 - HU/TÜV Fälligkeit mit Ampel-Status (✅ OK / ⚠️ Bald / 🔴 Überfällig)
 - "Kein TÜV"-Flag für Rennstrecken-Motorräder
@@ -63,9 +64,9 @@ Einfach die URL im Browser öffnen. In Chrome/Edge: Adressleiste → Install-Ico
 
 - Reines **HTML + CSS + JavaScript** — keine Frameworks
 - **IndexedDB** + localStorage (GB-Kapazität)
-- **PWA** mit Manifest — installierbar auf iOS, Android und Desktop
-- Vollständig **offline-fähig**
+- **PWA** mit Manifest + Service Worker — installierbar und offline-fähig
 - Automatische Foto-Komprimierung via Canvas API
+- SVG-basierte Diagramme (km-Verlauf)
 
 ---
 
@@ -74,7 +75,7 @@ Einfach die URL im Browser öffnen. In Chrome/Edge: Adressleiste → Install-Ico
 ⚠️ Daten werden lokal im Browser gespeichert. Regelmäßige Backups empfohlen:
 
 1. 📦 Daten → **JSON-Backup exportieren**
-2. Datei sicher aufbewahren (Cloud-Speicher)
+2. Datei sicher aufbewahren (Cloud-Speicher, NAS)
 3. Bei Bedarf über **JSON importieren** wiederherstellen
 
 ---
