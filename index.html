@@ -446,9 +446,16 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
   <h1>🏍️ BikerDesk</h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
-    <button class="btn btn-secondary btn-sm" onclick="openDataModal()">📦 Daten</button>
+    <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
+    <button class="btn btn-secondary btn-sm" onclick="openDataModal()">📦</button>
   </div>
 </header>
+
+<!-- ── BACKUP REMINDER ── -->
+<div id="backupReminder" style="display:none;background:linear-gradient(90deg,#2d1200,#1a0a00);border-bottom:1px solid var(--border);padding:10px 16px;font-size:0.82rem;color:var(--accent2);display:flex;align-items:center;justify-content:space-between" onclick="quickBackup()">
+  <span>⚠️ Letztes Backup vor <span id="backupDaysAgo"></span> Tagen — <strong>jetzt sichern</strong></span>
+  <button class="btn-icon" style="min-width:32px;min-height:32px;padding:2px;font-size:0.8rem" onclick="event.stopPropagation();dismissBackupReminder()">✕</button>
+</div>
 
 <!-- ── PAGES ── -->
 <div class="container">
@@ -1555,6 +1562,51 @@ function saveEditLog() {
   save(); closeEditLogModal(); renderStats(); renderLogbook(); showToast('✅ Eintrag aktualisiert');
 }
 
+// ── QUICK BACKUP ──
+function quickBackup() {
+  var data = {
+    version: 1, exportedAt: new Date().toISOString(),
+    bikes: state.bikes, maintenance: state.maintenance, logs: state.logs,
+    inventory: state.inventory, trackdays: state.trackdays, checklistTemplates: state.checklistTemplates
+  };
+  var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bikerdesk-backup-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  // Speichere Zeitpunkt des letzten Backups
+  localStorage.setItem('moto_last_backup', new Date().toISOString());
+  hideBackupReminder();
+  showToast('⚡ Backup gespeichert');
+}
+
+function checkBackupReminder() {
+  var last = localStorage.getItem('moto_last_backup');
+  var reminder = document.getElementById('backupReminder');
+  if (!last) {
+    // Noch nie ein Backup gemacht
+    reminder.style.display = 'flex';
+    document.getElementById('backupDaysAgo').textContent = '∞';
+    return;
+  }
+  var days = Math.round((Date.now() - new Date(last).getTime()) / (24*3600*1000));
+  if (days >= 7) {
+    reminder.style.display = 'flex';
+    document.getElementById('backupDaysAgo').textContent = days;
+  } else {
+    reminder.style.display = 'none';
+  }
+}
+
+function dismissBackupReminder() {
+  document.getElementById('backupReminder').style.display = 'none';
+}
+
+function hideBackupReminder() {
+  document.getElementById('backupReminder').style.display = 'none';
+}
+
 // ── HELP ──
 function openHelpModal() { document.getElementById('helpModal').classList.add('open'); }
 function closeHelpModal() { document.getElementById('helpModal').classList.remove('open'); }
@@ -1858,6 +1910,7 @@ function exportTrackdayICS() {
   }
   renderBikes();
   renderBikeSelectors();
+  checkBackupReminder();
 })();
 
 // ── SERVICE WORKER ──
