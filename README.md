@@ -21,54 +21,67 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 
 ### 📋 Serviceheft
 - Einträge mit Datum, km, Kosten, Werkstatt, Notizen
-- Fotos & Belege direkt mit der Kamera aufnehmen oder aus der Galerie hochladen
-- Einträge nachträglich bearbeiten (Kosten, Fotos hinzufügen)
-- Automatische Foto-Komprimierung (max 1200px, JPEG 75%)
+- Fotos & Belege direkt mit der Kamera aufnehmen oder aus der Galerie
+- Einträge nachträglich bearbeiten
+- Automatische Foto-Komprimierung
 
 ### 📦 Materiallager
-- Material anlegen (Öl, Filter, Bremsbeläge, etc.) mit Kaufmenge, Preis, Bestand
-- Beim Service: Material aus Lager wählen → Kosten automatisch berechnet, Bestand reduziert
+- Material anlegen mit Kaufmenge, Preis, Bestand
+- Beim Service: Material wählen → Kosten automatisch, Bestand reduziert
 
 ### 🏁 Trackdays
-- Rennstrecken-Termine planen und verwalten (Strecke, Veranstalter, Gruppe, Status)
-- **Checkliste** — 55 Standard-Punkte in 4 Kategorien (Kleidung, Dokumente, Technik, Infrastruktur)
-- Punkte abhaken, hinzufügen, entfernen — pro Trackday individuell
+- Rennstrecken-Termine planen (Strecke, Veranstalter, Gruppe, Status)
+- Checkliste mit 55 Standard-Punkten in 4 Kategorien
 - Checklisten-Vorlagen speichern und wiederverwenden
-- .ics Kalender-Export mit Erinnerungen (3 Tage + 1 Tag vorher)
+- .ics Kalender-Export mit Erinnerungen
 
 ### 📤 Export & Import
-- **JSON-Backup** — alle Daten sichern und wiederherstellen
-- **CSV-Export** — Einträge für Excel / Numbers
-- **PDF-Export** — druckbares Serviceheft pro Motorrad
-- **Kalender-Export (.ics)** — HU-Termine, Wartungen und Trackdays
+- JSON-Backup, CSV-Export, PDF-Export, Kalender (.ics)
+- Import mit Ersetzen- oder Merge-Modus
 
 ---
 
-## 📱 Auf dem iPhone installieren
+## 📱 Installation
 
-1. **Safari** öffnen und [diese URL](https://ricci73.github.io/motorrad-serviceheft/) aufrufen
-2. Teilen-Symbol antippen
+### iPhone (Safari)
+1. Safari öffnen → [App-URL](https://ricci73.github.io/motorrad-serviceheft/) aufrufen
+2. Teilen-Symbol (⬆️) antippen
 3. **„Zum Home-Bildschirm"** wählen
-4. Die App öffnet sich im Vollbild — wie eine native App
+
+### Android (Chrome)
+1. Chrome öffnen → [App-URL](https://ricci73.github.io/motorrad-serviceheft/) aufrufen
+2. Chrome zeigt automatisch **„App installieren"** Banner — antippen
+3. Falls kein Banner: Drei-Punkte-Menü (⋮) → **„App installieren"**
+4. App erscheint im App-Drawer wie eine native App
+
+### Desktop
+Einfach die URL im Browser öffnen. In Chrome/Edge: Adressleiste → Install-Icon (⊕) klicken.
 
 ---
 
 ## 🔧 Technologie
 
-- Reines **HTML + CSS + JavaScript** — keine Frameworks, keine Dependencies
-- **IndexedDB** als Primärspeicher (GB-Kapazität) + localStorage Fallback
-- Vollständig **offline-fähig** — kein Server, kein Internet nötig
-- Optimiert für **iPhone (iOS 13+), Android und Desktop**
+- Reines **HTML + CSS + JavaScript** — keine Frameworks
+- **IndexedDB** + localStorage (GB-Kapazität)
+- **PWA** mit Manifest — installierbar auf iOS, Android und Desktop
+- Vollständig **offline-fähig**
 - Automatische Foto-Komprimierung via Canvas API
 
 ---
 
 ## 💾 Datensicherung
 
-1. App öffnen → **📦 Daten** (oben rechts)
-2. **JSON-Backup exportieren**
-3. Datei sicher aufbewahren (iCloud, Google Drive, etc.)
-4. Bei Bedarf über **JSON-Datei importieren** wiederherstellen
+⚠️ Daten werden lokal im Browser gespeichert. Regelmäßige Backups empfohlen:
+
+1. 📦 Daten → **JSON-Backup exportieren**
+2. Datei sicher aufbewahren (Cloud-Speicher)
+3. Bei Bedarf über **JSON importieren** wiederherstellen
+
+---
+
+## ❓ Hilfe
+
+Die App enthält eine eingebaute Hilfe — tippe ❓ (oben rechts).
 
 ---
 
