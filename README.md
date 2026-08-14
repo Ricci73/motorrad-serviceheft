@@ -37,6 +37,8 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - .ics Kalender-Export mit Erinnerungen
 
 ### 📤 Export & Import
+- **⚡ Schnellbackup** — 1 Tap sichert alle Daten als JSON
+- **Backup-Erinnerung** — Hinweis wenn letztes Backup > 7 Tage her
 - JSON-Backup, CSV-Export, PDF-Export, Kalender (.ics)
 - Import mit Ersetzen- oder Merge-Modus
 
@@ -53,10 +55,9 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 1. Chrome öffnen → [App-URL](https://ricci73.github.io/motorrad-serviceheft/) aufrufen
 2. Chrome zeigt automatisch **„App installieren"** Banner — antippen
 3. Falls kein Banner: Drei-Punkte-Menü (⋮) → **„App installieren"**
-4. App erscheint im App-Drawer wie eine native App
 
 ### Desktop
-Einfach die URL im Browser öffnen. In Chrome/Edge: Adressleiste → Install-Icon (⊕) klicken.
+URL im Browser öffnen. In Chrome/Edge: Adressleiste → Install-Icon (⊕) klicken.
 
 ---
 
@@ -72,11 +73,12 @@ Einfach die URL im Browser öffnen. In Chrome/Edge: Adressleiste → Install-Ico
 
 ## 💾 Datensicherung
 
-⚠️ Daten werden lokal im Browser gespeichert. Regelmäßige Backups empfohlen:
+⚠️ Daten werden lokal im Browser gespeichert. Regelmäßige Backups empfohlen!
 
-1. 📦 Daten → **JSON-Backup exportieren**
-2. Datei sicher aufbewahren (Cloud-Speicher, NAS)
-3. Bei Bedarf über **JSON importieren** wiederherstellen
+- **⚡ Schnellbackup** (Header-Button) — 1 Tap, JSON wird heruntergeladen
+- **Backup-Erinnerung** — die App erinnert nach 7 Tagen ohne Backup
+- Datei sicher aufbewahren (iCloud Drive, NAS, Google Drive)
+- Bei Bedarf über 📦 Daten → JSON importieren wiederherstellen
 
 ---
 
