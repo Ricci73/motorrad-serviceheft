@@ -601,6 +601,20 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
     </div>
     <div class="form-group"><label>Motorrad</label><select id="tdBike"><option value="">—</option></select></div>
 
+    <div class="section-label" style="margin-top:8px">SCHNELL-ANLAGE (mehrere Tage)</div>
+    <div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:8px"><label>Von</label><input id="tdQuickFrom" type="date" /></div>
+        <div class="form-group" style="margin-bottom:8px"><label>Bis</label><input id="tdQuickTo" type="date" /></div>
+      </div>
+      <div class="form-group" style="margin-bottom:8px"><label>Art für alle Tage</label><input id="tdQuickArt" placeholder="z.B. Instruktor-Training" /></div>
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:8px"><label>Gruppe / Level</label><input id="tdQuickGroup" placeholder="Fortgeschritten…" /></div>
+        <div class="form-group" style="margin-bottom:8px"><label>Gesamtpreis (€)</label><input id="tdQuickCost" type="number" inputmode="decimal" step="0.01" /></div>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="generateTdDays()" style="width:100%;justify-content:center">⚡ Tage generieren</button>
+    </div>
+
     <div class="section-label" style="margin-top:8px">TAGE</div>
     <div id="tdDaysList"></div>
     <button type="button" class="btn btn-secondary btn-sm" onclick="addTdDay()" style="width:100%;justify-content:center;margin-top:8px">+ Tag hinzufügen</button>
@@ -1774,6 +1788,40 @@ function removeTdDay(i) {
   renderTdDays();
 }
 
+function generateTdDays() {
+  var from = document.getElementById('tdQuickFrom').value;
+  var to = document.getElementById('tdQuickTo').value;
+  var art = document.getElementById('tdQuickArt').value.trim();
+  var group = document.getElementById('tdQuickGroup').value.trim();
+  var totalCost = +document.getElementById('tdQuickCost').value || 0;
+  if (!from || !to) { showToast('Von- und Bis-Datum angeben','error'); return; }
+  if (from > to) { showToast('Bis-Datum liegt vor Von-Datum','error'); return; }
+  // Build day list from range
+  var days = [];
+  var cur = new Date(from);
+  var end = new Date(to);
+  var guard = 0;
+  while (cur <= end && guard < 60) {
+    days.push({
+      datum: cur.toISOString().split('T')[0],
+      art: art, gruppe: group, besteZeit: '',
+      kosten: 0  // total goes on day 1 below
+    });
+    cur.setDate(cur.getDate()+1);
+    guard++;
+  }
+  if (days.length && totalCost) days[0].kosten = totalCost; // Option B: total on first day
+  tdEditDays = days;
+  renderTdDays();
+  // Clear quick fields
+  document.getElementById('tdQuickFrom').value = '';
+  document.getElementById('tdQuickTo').value = '';
+  document.getElementById('tdQuickArt').value = '';
+  document.getElementById('tdQuickGroup').value = '';
+  document.getElementById('tdQuickCost').value = '';
+  showToast('⚡ ' + days.length + ' Tage generiert');
+}
+
 function openTrackdayModal(id) {
   editingTrackdayId = id || null;
   var td = id ? (state.trackdays||[]).find(function(x){return x.id===id;}) : null;
@@ -1790,6 +1838,12 @@ function openTrackdayModal(id) {
     tdEditDays = [{ datum: new Date().toISOString().split('T')[0], art:'', gruppe:'', besteZeit:'', kosten:0 }];
   }
   renderTdDays();
+  // Reset quick-add fields
+  document.getElementById('tdQuickFrom').value = '';
+  document.getElementById('tdQuickTo').value = '';
+  document.getElementById('tdQuickArt').value = '';
+  document.getElementById('tdQuickGroup').value = '';
+  document.getElementById('tdQuickCost').value = '';
   // Populate bike select
   var sel = document.getElementById('tdBike');
   sel.innerHTML = '<option value="">—</option>';
