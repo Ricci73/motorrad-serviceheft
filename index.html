@@ -1419,6 +1419,9 @@ function saveInvItem() {
     bikeId:document.getElementById('invBike').value||null,
     notes:document.getElementById('invNotes').value.trim()
   };
+  // If stock not explicitly set, default to purchase quantity
+  var stockField = document.getElementById('invStock').value.trim();
+  if (stockField === '' && data.qty > 0) data.stock = data.qty;
   if (editingInvId) {
     var existing = state.inventory.find(x=>x.id===editingInvId);
     // preserve history
