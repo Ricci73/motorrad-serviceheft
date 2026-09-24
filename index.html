@@ -498,6 +498,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
     <div class="page-header">
       <div class="page-title">🏁 Trackdays</div>
       <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="openMasterModal()">📋 Master</button>
         <button class="btn btn-secondary btn-sm" onclick="exportTrackdayICS()">📅 .ics</button>
         <button class="btn btn-primary btn-sm" onclick="openTrackdayModal()">+ Trackday</button>
       </div>
@@ -624,6 +625,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <input id="clNewItem" placeholder="Neuen Punkt hinzufügen…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:0.9rem;min-height:44px" />
       <button class="btn btn-primary btn-sm" onclick="addChecklistItem()">+</button>
     </div>
+    <button class="btn btn-secondary btn-sm" onclick="promoteToMaster()" style="width:100%;justify-content:center;margin-top:8px">⭐ Diese Liste als Master-Liste übernehmen</button>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeChecklistModal()">Schließen</button>
       <button class="btn btn-primary" onclick="saveChecklistAndClose()">💾 Speichern</button>
@@ -631,18 +633,26 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
   </div>
 </div>
 
-<!-- ── MODAL: Checklisten-Vorlage ── -->
-<div class="modal-overlay" id="templateModal">
+<!-- ── MODAL: Master-Checkliste ── -->
+<div class="modal-overlay" id="masterModal">
   <div class="modal" style="max-width:520px">
     <div class="modal-handle"></div>
-    <div class="modal-header"><div class="modal-title">📋 Checklisten-Vorlagen</div><button class="btn-icon" onclick="closeTemplateModal()">✕</button></div>
-    <div id="templateContent"></div>
-    <div class="form-group" style="margin-top:12px">
-      <input id="tplName" placeholder="Neue Vorlage speichern als…" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:0.9rem;min-height:44px" />
+    <div class="modal-header"><div class="modal-title">📋 Master-Checkliste</div><button class="btn-icon" onclick="closeMasterModal()">✕</button></div>
+    <div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px;font-size:0.82rem;color:var(--text2)">
+      Diese Liste ist die Vorlage für <strong style="color:var(--text)">neue</strong> Trackdays. Änderungen hier wirken sich nicht auf bestehende Trackdays aus.
+    </div>
+    <div id="masterContent"></div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <select id="masterNewCat" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:0.85rem;min-height:44px"></select>
+      <input id="masterNewItem" placeholder="Neuer Punkt…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:0.9rem;min-height:44px" />
+      <button class="btn btn-primary btn-sm" onclick="addMasterItem()">+</button>
+    </div>
+    <div style="margin-top:8px">
+      <input id="masterNewCatName" placeholder="Neue Kategorie hinzufügen…" style="width:calc(100% - 44px);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:0.9rem;min-height:44px" />
+      <button class="btn btn-secondary btn-sm" onclick="addMasterCategory()" style="margin-left:4px">+ Kat.</button>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeTemplateModal()">Abbrechen</button>
-      <button class="btn btn-primary" onclick="saveAsTemplate()">💾 Als Vorlage speichern</button>
+      <button class="btn btn-secondary" onclick="closeMasterModal()">Schließen</button>
     </div>
   </div>
 </div>
@@ -669,12 +679,12 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <script>
 // ── DATA ──
-let state = { bikes:[], maintenance:{}, logs:{}, inventory:[], trackdays:[], checklistTemplates:[], selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
+let state = { bikes:[], maintenance:{}, logs:{}, inventory:[], trackdays:[], masterChecklist:null, selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
 
 function save() {
   // Dual-write: IndexedDB (primary) + localStorage (fallback)
   dbSave();
-  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, checklistTemplates:state.checklistTemplates })); } catch(e) {}
+  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist })); } catch(e) {}
 }
 
 // ── IndexedDB ──
@@ -699,7 +709,7 @@ function dbSave() {
   dbOpen().then(db => {
     const tx = db.transaction('appdata', 'readwrite');
     const store = tx.objectStore('appdata');
-    store.put({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, checklistTemplates:state.checklistTemplates }, 'state');
+    store.put({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist }, 'state');
   }).catch(()=>{});
 }
 
@@ -720,7 +730,7 @@ async function load() {
   try {
     let data = await dbLoad();
     if (data && data.bikes && data.bikes.length) {
-      state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[]; state.trackdays = data.trackdays||[]; state.checklistTemplates = data.checklistTemplates||[];
+      state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[]; state.trackdays = data.trackdays||[]; state.masterChecklist = data.masterChecklist||null;
       state.selectedBike = state.bikes[0]?.id || null;
       return;
     }
@@ -730,7 +740,7 @@ async function load() {
     const d = localStorage.getItem('moto_serviceheft');
     if (d) {
       const p = JSON.parse(d);
-      state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[]; state.trackdays = p.trackdays||[]; state.checklistTemplates = p.checklistTemplates||[];
+      state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[]; state.trackdays = p.trackdays||[]; state.masterChecklist = p.masterChecklist||null;
       dbSave(); // migrate to IndexedDB
     }
   } catch(e) {}
@@ -1094,7 +1104,7 @@ function openPhoto(src) { document.getElementById('photoModalImg').src=src; docu
 function openDataModal() { document.getElementById('dataModal').classList.add('open'); }
 function closeDataModal() { document.getElementById('dataModal').classList.remove('open'); }
 function exportJSON() {
-  const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs,inventory:state.inventory,trackdays:state.trackdays,checklistTemplates:state.checklistTemplates};
+  const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs,inventory:state.inventory,trackdays:state.trackdays,masterChecklist:state.masterChecklist};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=`motorrad-backup-${new Date().toISOString().split('T')[0]}.json`;
@@ -1123,7 +1133,7 @@ function importJSON(event) {
       const mode=document.querySelector('input[name="importMode"]:checked')?.value||'replace';
       if (mode==='replace') {
         if (!confirm(`Alle Daten ersetzen? Backup enthält ${data.bikes.length} Motorrad/Motorräder.`)) return;
-        state.bikes=data.bikes; state.maintenance=data.maintenance||{}; state.logs=data.logs||{}; state.inventory=data.inventory||[]; state.trackdays=data.trackdays||[]; state.checklistTemplates=data.checklistTemplates||[];
+        state.bikes=data.bikes; state.maintenance=data.maintenance||{}; state.logs=data.logs||{}; state.inventory=data.inventory||[]; state.trackdays=data.trackdays||[]; state.masterChecklist=data.masterChecklist||null;
         state.selectedBike=state.bikes[0]?.id||null;
         showToast(`✅ ${data.bikes.length} Motorrad/Motorräder importiert`);
       } else {
@@ -1567,7 +1577,7 @@ function quickBackup() {
   var data = {
     version: 1, exportedAt: new Date().toISOString(),
     bikes: state.bikes, maintenance: state.maintenance, logs: state.logs,
-    inventory: state.inventory, trackdays: state.trackdays, checklistTemplates: state.checklistTemplates
+    inventory: state.inventory, trackdays: state.trackdays, masterChecklist: state.masterChecklist
   };
   var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
   var a = document.createElement('a');
@@ -1719,14 +1729,24 @@ function deleteTrackday(id) {
   save(); renderTrackdays(); showToast('🗑️ Gelöscht');
 }
 
-function buildDefaultChecklist() {
-  var cl = [];
-  DEFAULT_CHECKLIST.forEach(function(cat) {
-    cat.items.forEach(function(item) {
-      cl.push({cat: cat.cat, name: item, done: false});
+function getMasterChecklist() {
+  // Initialize master from DEFAULT_CHECKLIST on first use
+  if (!state.masterChecklist) {
+    state.masterChecklist = [];
+    DEFAULT_CHECKLIST.forEach(function(cat) {
+      cat.items.forEach(function(item) {
+        state.masterChecklist.push({cat: cat.cat, name: item});
+      });
     });
+  }
+  return state.masterChecklist;
+}
+
+function buildDefaultChecklist() {
+  // Copy the master list into a fresh trackday checklist (with done:false)
+  return getMasterChecklist().map(function(item) {
+    return {cat: item.cat, name: item.name, done: false};
   });
-  return cl;
 }
 
 // ── CHECKLIST ──
@@ -1800,59 +1820,101 @@ function saveChecklistAndClose() {
   save(); closeChecklistModal(); renderTrackdays(); showToast('✅ Checkliste gespeichert');
 }
 
-// ── TRACKDAY TEMPLATES ──
-function openTemplateModal() {
-  renderTemplates();
-  document.getElementById('templateModal').classList.add('open');
+// ── MASTER-CHECKLISTE ──
+function openMasterModal() {
+  getMasterChecklist(); // ensure initialized
+  renderMaster();
+  refreshMasterCatDropdown();
+  document.getElementById('masterModal').classList.add('open');
 }
-function closeTemplateModal() { document.getElementById('templateModal').classList.remove('open'); }
+function closeMasterModal() { document.getElementById('masterModal').classList.remove('open'); }
 
-function renderTemplates() {
-  var tpls = state.checklistTemplates || [];
+function getMasterCategories() {
+  var cats = [];
+  getMasterChecklist().forEach(function(item) {
+    if (cats.indexOf(item.cat) === -1) cats.push(item.cat);
+  });
+  return cats;
+}
+
+function refreshMasterCatDropdown() {
+  var sel = document.getElementById('masterNewCat');
+  var cats = getMasterCategories();
+  sel.innerHTML = cats.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('');
+}
+
+function renderMaster() {
+  var master = getMasterChecklist();
+  var cats = [];
+  var catMap = {};
+  master.forEach(function(item, idx) {
+    if (!catMap[item.cat]) { catMap[item.cat] = []; cats.push(item.cat); }
+    catMap[item.cat].push({item:item, idx:idx});
+  });
   var html = '';
-  if (!tpls.length) {
-    html = '<div style="color:var(--text2);font-size:0.85rem;padding:12px">Noch keine Vorlagen gespeichert.</div>';
-  } else {
-    tpls.forEach(function(tpl, i) {
-      html += '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:8px">';
-      html += '<span style="flex:1;font-weight:600">' + tpl.name + ' <span style="font-weight:400;color:var(--text2);font-size:0.8rem">(' + tpl.items.length + ' Punkte)</span></span>';
-      html += '<button class="btn btn-sm btn-primary" onclick="applyTemplate('+i+')">Verwenden</button>';
-      html += '<button class="btn-icon" onclick="deleteTemplate('+i+')">🗑️</button>';
+  cats.forEach(function(cat) {
+    var items = catMap[cat];
+    html += '<div class="section-label" style="margin-top:12px">' + cat + ' (' + items.length + ')</div>';
+    items.forEach(function(entry) {
+      var i = entry.idx;
+      var item = entry.item;
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border)">';
+      html += '<input value="' + item.name.replace(/"/g,'&quot;') + '" onchange="renameMasterItem('+i+',this.value)" style="flex:1;background:transparent;border:none;color:var(--text);font-size:0.9rem;padding:6px 0" />';
+      html += '<button class="btn-icon" style="min-width:32px;min-height:32px;padding:4px" onclick="removeMasterItem('+i+')">✕</button>';
       html += '</div>';
     });
-  }
-  document.getElementById('templateContent').innerHTML = html;
+  });
+  document.getElementById('masterContent').innerHTML = html;
 }
 
-function saveAsTemplate() {
-  var name = document.getElementById('tplName').value.trim();
-  if (!name) { showToast('Vorlagenname eingeben','error'); return; }
+function addMasterItem() {
+  var input = document.getElementById('masterNewItem');
+  var name = input.value.trim();
+  var cat = document.getElementById('masterNewCat').value;
+  if (!name) return;
+  if (!cat) cat = 'Sonstiges';
+  getMasterChecklist().push({cat: cat, name: name});
+  input.value = '';
+  save(); renderMaster();
+}
+
+function addMasterCategory() {
+  var input = document.getElementById('masterNewCatName');
+  var cat = input.value.trim();
+  if (!cat) return;
+  // Add category by adding a placeholder item, or just make it available in dropdown
+  if (getMasterCategories().indexOf(cat) === -1) {
+    getMasterChecklist().push({cat: cat, name: 'Neuer Punkt'});
+    input.value = '';
+    save(); renderMaster(); refreshMasterCatDropdown();
+    // Pre-select the new category
+    document.getElementById('masterNewCat').value = cat;
+  } else {
+    showToast('Kategorie existiert bereits','error');
+  }
+}
+
+function renameMasterItem(idx, newName) {
+  var master = getMasterChecklist();
+  if (!master[idx]) return;
+  newName = newName.trim();
+  if (!newName) return;
+  master[idx].name = newName;
+  save();
+}
+
+function removeMasterItem(idx) {
+  getMasterChecklist().splice(idx, 1);
+  save(); renderMaster(); refreshMasterCatDropdown();
+}
+
+function promoteToMaster() {
   var td = (state.trackdays||[]).find(function(x){return x.id===currentChecklistTdId;});
   if (!td || !td.checklist) { showToast('Keine Checkliste vorhanden','error'); return; }
-  if (!state.checklistTemplates) state.checklistTemplates = [];
-  state.checklistTemplates.push({
-    name: name,
-    items: td.checklist.map(function(c){return {cat:c.cat, name:c.name};})
-  });
-  save(); document.getElementById('tplName').value = '';
-  showToast('✅ Vorlage "' + name + '" gespeichert');
-  closeTemplateModal();
-}
-
-function applyTemplate(idx) {
-  var tpl = (state.checklistTemplates||[])[idx];
-  if (!tpl) return;
-  var td = (state.trackdays||[]).find(function(x){return x.id===currentChecklistTdId;});
-  if (!td) return;
-  td.checklist = tpl.items.map(function(item){return {cat:item.cat, name:item.name, done:false};});
-  save(); renderChecklist(td.checklist); closeTemplateModal();
-  showToast('✅ Vorlage angewendet');
-}
-
-function deleteTemplate(idx) {
-  if (!confirm('Vorlage löschen?')) return;
-  (state.checklistTemplates||[]).splice(idx, 1);
-  save(); renderTemplates();
+  if (!confirm('Diese Trackday-Liste als neue Master-Liste übernehmen?\n\nNeue Trackdays verwenden dann diese Punkte. Bestehende Trackdays bleiben unverändert.')) return;
+  state.masterChecklist = td.checklist.map(function(c){ return {cat: c.cat, name: c.name}; });
+  save();
+  showToast('⭐ Master-Liste aktualisiert');
 }
 
 // ── TRACKDAY ICS EXPORT ──
