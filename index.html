@@ -1360,7 +1360,7 @@ function renderInventory() {
     const lowStock = (item.minStock != null && item.minStock > 0 && (item.stock||0) <= item.minStock);
     const bike = item.bikeId ? state.bikes.find(b=>b.id===item.bikeId) : null;
     const bikeName = bike ? bike.make + ' ' + bike.model : '';
-    return `<div class="maint-item" style="border-left-color:${lowStock ? 'var(--danger)' : 'var(--accent2)'}">
+    return `<div class="maint-item" style="border-left-color:${lowStock ? 'var(--danger)' : 'var(--accent2)'};flex-direction:column;align-items:stretch">
       <div class="maint-item-body">
         <div class="maint-name">${item.name} <span style="font-size:0.75rem;color:var(--text2);font-weight:400">${item.category||''}</span>${lowStock ? ' <span class="status-badge status-overdue">🔴 Niedrig</span>' : ''}</div>
         <div class="maint-details">
@@ -1372,7 +1372,7 @@ function renderInventory() {
           ${item.notes ? `<br>${item.notes}` : ''}
         </div>
       </div>
-      <div class="maint-actions" style="flex-direction:column">
+      <div class="maint-actions" style="justify-content:flex-end;gap:4px;margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
         <button class="btn-icon" title="Nachkaufen" onclick="openRestockModal('${item.id}')">🛒</button>
         <button class="btn-icon" title="Verlauf" onclick="openInvHistoryModal('${item.id}')">📊</button>
         <button class="btn-icon" title="Bearbeiten" onclick="openInvModal('${item.id}')">✏️</button>
