@@ -33,7 +33,8 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 ### 🏁 Trackdays
 - Rennstrecken-Termine planen (Strecke, Veranstalter, Gruppe, Status)
 - Checkliste mit 55 Standard-Punkten in 4 Kategorien
-- Checklisten-Vorlagen speichern und wiederverwenden
+- **Master-Checkliste** — zentral bearbeitbar, dient als Vorlage für neue Trackdays
+- Trackday-Listen individuell anpassbar; eine Liste kann zur neuen Master-Liste gemacht werden
 - .ics Kalender-Export mit Erinnerungen
 
 ### 📤 Export & Import
