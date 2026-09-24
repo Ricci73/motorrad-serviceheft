@@ -31,7 +31,9 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - Beim Service: Material wählen → Kosten automatisch, Bestand reduziert
 
 ### 🏁 Trackdays
-- Rennstrecken-Termine planen (Strecke, Veranstalter, Gruppe, Status)
+- Rennstrecken-Termine planen (Strecke, Veranstalter, Motorrad, Status)
+- **Mehrtägige Events** — ein Trackday über mehrere Tage mit Details pro Tag (Art, Gruppe, beste Zeit, Kosten) und Gesamtsumme
+- **Schnell-Anlage** — Zeitraum + Gesamtpreis eingeben, Tage werden automatisch erzeugt
 - Checkliste mit 55 Standard-Punkten in 4 Kategorien
 - **Master-Checkliste** — zentral bearbeitbar, dient als Vorlage für neue Trackdays
 - Trackday-Listen individuell anpassbar; eine Liste kann zur neuen Master-Liste gemacht werden
