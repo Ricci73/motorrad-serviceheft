@@ -1,4 +1,4 @@
-const CACHE_NAME = "bikerdesk-v21";
+const CACHE_NAME = "bikerdesk-v27";
 const ASSETS = ["./", "./index.html", "./manifest.json"];
 
 self.addEventListener("install", function(e) {
@@ -23,20 +23,31 @@ self.addEventListener("activate", function(e) {
 });
 
 self.addEventListener("fetch", function(e) {
-  e.respondWith(
-    caches.match(e.request).then(function(cached) {
-      var fetchPromise = fetch(e.request).then(function(response) {
-        if (response && response.status === 200) {
-          var clone = response.clone();
-          caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(e.request, clone);
-          });
-        }
+  var req = e.request;
+  var isHTML = req.mode === "navigate" || (req.headers.get("accept") || "").indexOf("text/html") !== -1;
+  if (isHTML) {
+    // Network-first for the app shell so updates arrive immediately
+    e.respondWith(
+      fetch(req).then(function(response) {
+        var clone = response.clone();
+        caches.open(CACHE_NAME).then(function(cache){ cache.put(req, clone); });
         return response;
       }).catch(function() {
-        return cached;
+        return caches.match(req).then(function(c){ return c || caches.match("./index.html"); });
+      })
+    );
+    return;
+  }
+  // Cache-first for other assets
+  e.respondWith(
+    caches.match(req).then(function(cached) {
+      return cached || fetch(req).then(function(response) {
+        if (response && response.status === 200) {
+          var clone = response.clone();
+          caches.open(CACHE_NAME).then(function(cache){ cache.put(req, clone); });
+        }
+        return response;
       });
-      return cached || fetchPromise;
     })
   );
 });
