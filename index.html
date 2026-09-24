@@ -592,22 +592,35 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-header"><div class="modal-title" id="tdModalTitle">Trackday hinzufügen</div><button class="btn-icon" onclick="closeTrackdayModal()">✕</button></div>
+    <div class="form-group"><label>Strecke *</label><input id="tdTrack" placeholder="z.B. Anneau du Rhin, Nürburgring…" /></div>
     <div class="form-row">
-      <div class="form-group"><label>Datum *</label><input id="tdDate" type="date" /></div>
+      <div class="form-group"><label>Veranstalter</label><input id="tdOrganizer" placeholder="Speer Racing, HPS…" /></div>
       <div class="form-group"><label>Status</label>
         <select id="tdStatus"><option>Geplant</option><option>Gebucht</option><option>Erledigt</option><option>Storniert</option></select>
       </div>
     </div>
-    <div class="form-group"><label>Strecke *</label><input id="tdTrack" placeholder="z.B. Nürburgring GP, Hockenheim…" /></div>
-    <div class="form-row">
-      <div class="form-group"><label>Veranstalter</label><input id="tdOrganizer" placeholder="Speer Racing, HPS…" /></div>
-      <div class="form-group"><label>Gruppe / Level</label><input id="tdGroup" placeholder="Sportfahrer, Einsteiger…" /></div>
+    <div class="form-group"><label>Motorrad</label><select id="tdBike"><option value="">—</option></select></div>
+
+    <div class="section-label" style="margin-top:8px">SCHNELL-ANLAGE (mehrere Tage)</div>
+    <div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:8px"><label>Von</label><input id="tdQuickFrom" type="date" /></div>
+        <div class="form-group" style="margin-bottom:8px"><label>Bis</label><input id="tdQuickTo" type="date" /></div>
+      </div>
+      <div class="form-group" style="margin-bottom:8px"><label>Art für alle Tage</label><input id="tdQuickArt" placeholder="z.B. Instruktor-Training" /></div>
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:8px"><label>Gruppe / Level</label><input id="tdQuickGroup" placeholder="Fortgeschritten…" /></div>
+        <div class="form-group" style="margin-bottom:8px"><label>Gesamtpreis (€)</label><input id="tdQuickCost" type="number" inputmode="decimal" step="0.01" /></div>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="generateTdDays()" style="width:100%;justify-content:center">⚡ Tage generieren</button>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>Motorrad</label><select id="tdBike"><option value="">—</option></select></div>
-      <div class="form-group"><label>Kosten (€)</label><input id="tdCost" type="number" inputmode="decimal" step="0.01" /></div>
-    </div>
-    <div class="form-group"><label>Notizen</label><textarea id="tdNotes" placeholder="Streckenlayout, Tipps, Boxennr…"></textarea></div>
+
+    <div class="section-label" style="margin-top:8px">TAGE</div>
+    <div id="tdDaysList"></div>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="addTdDay()" style="width:100%;justify-content:center;margin-top:8px">+ Tag hinzufügen</button>
+    <div id="tdTotalCost" style="text-align:right;font-size:0.9rem;font-weight:700;color:var(--accent);margin-top:10px"></div>
+
+    <div class="form-group" style="margin-top:12px"><label>Notizen</label><textarea id="tdNotes" placeholder="Streckenlayout, Tipps, Boxennr…"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeTrackdayModal()">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveTrackday()">💾 Speichern</button>
@@ -1642,9 +1655,35 @@ function renderTrackdays() {
   document.getElementById('trackdayPast').innerHTML = past.length ? past.map(renderTdCard).join('') : '<div style="color:var(--text2);font-size:0.85rem;padding:12px">Noch keine vergangenen Trackdays</div>';
 }
 
+// Migration: convert old single-day trackday to days-array format
+function migrateTd(td) {
+  if (!td.days) {
+    td.days = [{
+      datum: td.date || new Date().toISOString().split('T')[0],
+      art: td.group || '',
+      gruppe: td.group || '',
+      besteZeit: '',
+      kosten: +td.cost || 0
+    }];
+  }
+  return td;
+}
+function tdStartDate(td) { migrateTd(td); return td.days[0].datum; }
+function tdEndDate(td) { migrateTd(td); return td.days[td.days.length-1].datum; }
+function tdTotalCost(td) { migrateTd(td); return td.days.reduce(function(s,d){return s+(+d.kosten||0);},0); }
+
+function renderTrackdays() {
+  var tds = (state.trackdays || []).map(migrateTd);
+  var now = new Date().toISOString().split('T')[0];
+  var upcoming = tds.filter(function(t){ return tdEndDate(t) >= now && t.status !== 'Storniert'; }).sort(function(a,b){ return tdStartDate(a) > tdStartDate(b) ? 1 : -1; });
+  var past = tds.filter(function(t){ return tdEndDate(t) < now || t.status === 'Erledigt' || t.status === 'Storniert'; }).sort(function(a,b){ return tdStartDate(a) > tdStartDate(b) ? -1 : 1; });
+
+  document.getElementById('trackdayUpcoming').innerHTML = upcoming.length ? upcoming.map(renderTdCard).join('') : '<div class="empty-state"><div class="icon">🏁</div><p>Keine kommenden Trackdays</p></div>';
+  document.getElementById('trackdayPast').innerHTML = past.length ? past.map(renderTdCard).join('') : '<div style="color:var(--text2);font-size:0.85rem;padding:12px">Noch keine vergangenen Trackdays</div>';
+}
+
 function renderTdCard(td) {
-  var d = new Date(td.date);
-  var dateStr = d.toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+  migrateTd(td);
   var statusColors = {Geplant:'var(--text2)',Gebucht:'var(--success)',Erledigt:'var(--accent)',Storniert:'var(--danger)'};
   var statusIcons = {Geplant:'📋',Gebucht:'✅',Erledigt:'🏁',Storniert:'❌'};
   var bike = td.bikeId ? state.bikes.find(function(b){return b.id===td.bikeId;}) : null;
@@ -1653,15 +1692,47 @@ function renderTdCard(td) {
   var checked = cl.filter(function(c){return c.done;}).length;
   var total = cl.length;
 
+  // Date range
+  var start = new Date(tdStartDate(td));
+  var end = new Date(tdEndDate(td));
+  var dateStr;
+  if (tdStartDate(td) === tdEndDate(td)) {
+    dateStr = start.toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+  } else {
+    dateStr = start.toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'short'}) + ' – ' + end.toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'short', year:'numeric'}) + ' (' + td.days.length + ' Tage)';
+  }
+
+  // Per-day lines
+  var dayLines = '';
+  if (td.days.length > 1) {
+    td.days.forEach(function(day, i) {
+      var parts = [];
+      if (day.art) parts.push(day.art);
+      if (day.gruppe && day.gruppe !== day.art) parts.push(day.gruppe);
+      if (day.besteZeit) parts.push('🏁 ' + day.besteZeit);
+      if (day.kosten) parts.push((+day.kosten).toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €');
+      var dName = new Date(day.datum).toLocaleDateString('de-DE',{weekday:'short'});
+      dayLines += '<br><span style="color:var(--text2)">Tag ' + (i+1) + ' (' + dName + '): ' + (parts.join(' · ')||'—') + '</span>';
+    });
+  } else {
+    var day = td.days[0];
+    var parts = [];
+    if (day.art) parts.push(day.art);
+    if (day.besteZeit) parts.push('🏁 ' + day.besteZeit);
+    if (parts.length) dayLines = '<br><span style="color:var(--text2)">' + parts.join(' · ') + '</span>';
+  }
+
+  var total_cost = tdTotalCost(td);
+
   return '<div class="maint-item" style="border-left-color:' + (statusColors[td.status]||'var(--accent)') + '">' +
     '<div class="maint-item-body">' +
       '<div class="maint-name">' + td.track + ' <span style="font-size:0.75rem;color:' + (statusColors[td.status]||'var(--text2)') + '">' + (statusIcons[td.status]||'') + ' ' + td.status + '</span></div>' +
       '<div class="maint-details">' +
         '📅 ' + dateStr +
         (td.organizer ? ' · ' + td.organizer : '') +
-        (td.group ? ' · ' + td.group : '') +
         (bikeName ? '<br>🏍️ ' + bikeName : '') +
-        (td.cost ? ' · 💶 ' + (+td.cost).toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €' : '') +
+        dayLines +
+        (total_cost ? '<br>💶 Gesamt: ' + total_cost.toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €' : '') +
         (total > 0 ? '<br>📋 Checkliste: ' + checked + '/' + total + (checked===total && total>0 ? ' ✅' : '') : '') +
         (td.notes ? '<br><span style="color:var(--text2)">' + td.notes + '</span>' : '') +
       '</div>' +
@@ -1674,17 +1745,105 @@ function renderTdCard(td) {
   '</div>';
 }
 
+// Temp days array while editing
+var tdEditDays = [];
+
+function renderTdDays() {
+  var el = document.getElementById('tdDaysList');
+  var html = '';
+  tdEditDays.forEach(function(day, i) {
+    html += '<div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:8px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><strong style="font-size:0.85rem">Tag ' + (i+1) + '</strong>' + (tdEditDays.length>1 ? '<button class="btn-icon" style="min-width:28px;min-height:28px;padding:2px" onclick="removeTdDay('+i+')">✕</button>' : '') + '</div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:8px"><label>Datum</label><input type="date" value="'+(day.datum||'')+'" onchange="tdEditDays['+i+'].datum=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:8px"><label>Kosten (€)</label><input type="number" inputmode="decimal" step="0.01" value="'+(day.kosten||'')+'" onchange="tdEditDays['+i+'].kosten=+this.value;updateTdTotal()" /></div>';
+    html += '</div>';
+    html += '<div class="form-group" style="margin-bottom:8px"><label>Art / Beschreibung</label><input value="'+(day.art||'').replace(/"/g,'&quot;')+'" placeholder="Instruktor-Training, Freies Fahren…" onchange="tdEditDays['+i+'].art=this.value" /></div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:0"><label>Gruppe / Level</label><input value="'+(day.gruppe||'').replace(/"/g,'&quot;')+'" placeholder="Fortgeschritten…" onchange="tdEditDays['+i+'].gruppe=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:0"><label>Beste Zeit</label><input value="'+(day.besteZeit||'').replace(/"/g,'&quot;')+'" placeholder="1:52.3" onchange="tdEditDays['+i+'].besteZeit=this.value" /></div>';
+    html += '</div>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+  updateTdTotal();
+}
+
+function updateTdTotal() {
+  var total = tdEditDays.reduce(function(s,d){return s+(+d.kosten||0);},0);
+  document.getElementById('tdTotalCost').textContent = total ? 'Gesamt: ' + total.toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €' : '';
+}
+
+function addTdDay() {
+  var lastDate = tdEditDays.length ? tdEditDays[tdEditDays.length-1].datum : new Date().toISOString().split('T')[0];
+  // Default next day = last + 1
+  var next = new Date(lastDate);
+  next.setDate(next.getDate()+1);
+  tdEditDays.push({ datum: next.toISOString().split('T')[0], art:'', gruppe:'', besteZeit:'', kosten:0 });
+  renderTdDays();
+}
+
+function removeTdDay(i) {
+  tdEditDays.splice(i,1);
+  renderTdDays();
+}
+
+function generateTdDays() {
+  var from = document.getElementById('tdQuickFrom').value;
+  var to = document.getElementById('tdQuickTo').value;
+  var art = document.getElementById('tdQuickArt').value.trim();
+  var group = document.getElementById('tdQuickGroup').value.trim();
+  var totalCost = +document.getElementById('tdQuickCost').value || 0;
+  if (!from || !to) { showToast('Von- und Bis-Datum angeben','error'); return; }
+  if (from > to) { showToast('Bis-Datum liegt vor Von-Datum','error'); return; }
+  // Build day list from range
+  var days = [];
+  var cur = new Date(from);
+  var end = new Date(to);
+  var guard = 0;
+  while (cur <= end && guard < 60) {
+    days.push({
+      datum: cur.toISOString().split('T')[0],
+      art: art, gruppe: group, besteZeit: '',
+      kosten: 0  // total goes on day 1 below
+    });
+    cur.setDate(cur.getDate()+1);
+    guard++;
+  }
+  if (days.length && totalCost) days[0].kosten = totalCost; // Option B: total on first day
+  tdEditDays = days;
+  renderTdDays();
+  // Clear quick fields
+  document.getElementById('tdQuickFrom').value = '';
+  document.getElementById('tdQuickTo').value = '';
+  document.getElementById('tdQuickArt').value = '';
+  document.getElementById('tdQuickGroup').value = '';
+  document.getElementById('tdQuickCost').value = '';
+  showToast('⚡ ' + days.length + ' Tage generiert');
+}
+
 function openTrackdayModal(id) {
   editingTrackdayId = id || null;
   var td = id ? (state.trackdays||[]).find(function(x){return x.id===id;}) : null;
+  if (td) migrateTd(td);
   document.getElementById('tdModalTitle').textContent = id ? 'Trackday bearbeiten' : 'Trackday hinzufügen';
-  document.getElementById('tdDate').value = td ? td.date : new Date().toISOString().split('T')[0];
   document.getElementById('tdStatus').value = td ? td.status : 'Geplant';
   document.getElementById('tdTrack').value = td ? td.track : '';
   document.getElementById('tdOrganizer').value = td ? td.organizer : '';
-  document.getElementById('tdGroup').value = td ? td.group : '';
-  document.getElementById('tdCost').value = td ? td.cost : '';
   document.getElementById('tdNotes').value = td ? td.notes : '';
+  // Days
+  if (td) {
+    tdEditDays = td.days.map(function(d){ return {datum:d.datum, art:d.art||'', gruppe:d.gruppe||'', besteZeit:d.besteZeit||'', kosten:+d.kosten||0}; });
+  } else {
+    tdEditDays = [{ datum: new Date().toISOString().split('T')[0], art:'', gruppe:'', besteZeit:'', kosten:0 }];
+  }
+  renderTdDays();
+  // Reset quick-add fields
+  document.getElementById('tdQuickFrom').value = '';
+  document.getElementById('tdQuickTo').value = '';
+  document.getElementById('tdQuickArt').value = '';
+  document.getElementById('tdQuickGroup').value = '';
+  document.getElementById('tdQuickCost').value = '';
   // Populate bike select
   var sel = document.getElementById('tdBike');
   sel.innerHTML = '<option value="">—</option>';
@@ -1700,17 +1859,18 @@ function openTrackdayModal(id) {
 function closeTrackdayModal() { document.getElementById('trackdayModal').classList.remove('open'); editingTrackdayId = null; }
 
 function saveTrackday() {
-  var date = document.getElementById('tdDate').value;
   var track = document.getElementById('tdTrack').value.trim();
-  if (!date || !track) { showToast('Datum und Strecke sind Pflicht','error'); return; }
+  if (!track) { showToast('Strecke ist Pflicht','error'); return; }
+  if (!tdEditDays.length || !tdEditDays[0].datum) { showToast('Mindestens ein Tag mit Datum','error'); return; }
   if (!state.trackdays) state.trackdays = [];
+  // Sort days by date
+  var days = tdEditDays.slice().sort(function(a,b){ return a.datum > b.datum ? 1 : -1; });
   var data = {
-    date: date, track: track, status: document.getElementById('tdStatus').value,
+    track: track, status: document.getElementById('tdStatus').value,
     organizer: document.getElementById('tdOrganizer').value.trim(),
-    group: document.getElementById('tdGroup').value.trim(),
     bikeId: document.getElementById('tdBike').value || null,
-    cost: +document.getElementById('tdCost').value || 0,
-    notes: document.getElementById('tdNotes').value.trim()
+    notes: document.getElementById('tdNotes').value.trim(),
+    days: days
   };
   if (editingTrackdayId) {
     var td = state.trackdays.find(function(x){return x.id===editingTrackdayId;});
@@ -1923,14 +2083,27 @@ function exportTrackdayICS() {
   if (!tds.length) { showToast('Keine aktiven Trackdays','error'); return; }
   var lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Motorrad Serviceheft//DE','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Trackdays','X-WR-TIMEZONE:Europe/Berlin'];
   tds.forEach(function(td) {
-    var dtStart = td.date.replace(/-/g,'');
+    migrateTd(td);
+    var dtStart = tdStartDate(td).replace(/-/g,'');
+    // DTEND for all-day events is exclusive → add 1 day to the last day
+    var endD = new Date(tdEndDate(td));
+    endD.setDate(endD.getDate()+1);
+    var dtEnd = endD.toISOString().split('T')[0].replace(/-/g,'');
     var id2 = Math.random().toString(36).substr(2,12) + '@motorrad-serviceheft';
-    var desc = [td.organizer?'Veranstalter: '+td.organizer:'', td.group?'Gruppe: '+td.group:'', td.cost?'Kosten: '+td.cost+' EUR':''].filter(Boolean).join('\\n');
+    var descParts = [];
+    if (td.organizer) descParts.push('Veranstalter: '+td.organizer);
+    td.days.forEach(function(day,i){
+      var dParts = [day.art, day.gruppe].filter(Boolean).join(' / ');
+      if (dParts || day.kosten) descParts.push('Tag '+(i+1)+': '+(dParts||'')+(day.kosten?' ('+day.kosten+' EUR)':''));
+    });
+    var totalC = tdTotalCost(td);
+    if (totalC) descParts.push('Gesamt: '+totalC+' EUR');
+    var desc = descParts.join('\\n');
     lines.push('BEGIN:VEVENT');
     lines.push('UID:'+id2);
     lines.push('DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z');
     lines.push('DTSTART;VALUE=DATE:'+dtStart);
-    lines.push('DTEND;VALUE=DATE:'+dtStart);
+    lines.push('DTEND;VALUE=DATE:'+dtEnd);
     lines.push('SUMMARY:🏁 Trackday: '+td.track);
     if (desc) lines.push('DESCRIPTION:'+desc);
     lines.push('LOCATION:'+td.track);
