@@ -491,6 +491,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <div class="page-title">📦 Materiallager</div>
       <button class="btn btn-primary btn-sm" onclick="openInvModal()">+ Material</button>
     </div>
+    <div class="bike-selector" id="invCategoryFilter"></div>
     <div id="inventoryContent"></div>
   </div>
 
@@ -534,11 +535,43 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <div class="form-group"><label>Aktueller Bestand</label><input id="invStock" type="number" inputmode="decimal" step="0.1" /></div>
       <div class="form-group"><label>Kaufdatum</label><input id="invDate" type="date" /></div>
     </div>
+    <div class="form-row">
+      <div class="form-group"><label>Mindestbestand (Warnung)</label><input id="invMinStock" type="number" inputmode="decimal" step="0.1" placeholder="z.B. 1" /></div>
+      <div class="form-group"><label>Passt zu Motorrad</label><select id="invBike"><option value="">Universell</option></select></div>
+    </div>
     <div class="form-group"><label>Notizen / Artikelnr.</label><textarea id="invNotes" placeholder="Artikelnummer, Bezugsquelle…"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeInvModal()">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveInvItem()">💾 Speichern</button>
     </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Nachkauf ── -->
+<div class="modal-overlay" id="restockModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="restockTitle">🛒 Nachkaufen</div><button class="btn-icon" onclick="closeRestockModal()">✕</button></div>
+    <div id="restockInfo" style="font-size:0.85rem;color:var(--text2);margin-bottom:12px"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Menge nachgekauft</label><input id="restockQty" type="number" inputmode="decimal" step="0.1" placeholder="4" /></div>
+      <div class="form-group"><label>Preis gesamt (€)</label><input id="restockPrice" type="number" inputmode="decimal" step="0.01" placeholder="40.00" /></div>
+    </div>
+    <div class="form-group"><label>Datum</label><input id="restockDate" type="date" /></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRestockModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveRestock()">🛒 Nachkaufen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Verbrauchshistorie ── -->
+<div class="modal-overlay" id="invHistoryModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="invHistoryTitle">📊 Verlauf</div><button class="btn-icon" onclick="closeInvHistoryModal()">✕</button></div>
+    <div id="invHistoryContent"></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeInvHistoryModal()">Schließen</button></div>
   </div>
 </div>
 
@@ -1097,6 +1130,8 @@ function saveLog() {
     const cost = unitPrice * m.qty;
     materialCost += cost;
     inv.stock = Math.max(0, (inv.stock||0) - m.qty); // deduct
+    if (!inv.history) inv.history = [];
+    inv.history.push({ type:'Verbrauch', qty:m.qty, date:date, ref:type });
     usedMaterials.push({ name:inv.name, qty:m.qty, unit:inv.unit, cost:Math.round(cost*100)/100 });
   });
   const totalCost = (+document.getElementById('lCost').value||0) + materialCost;
@@ -1293,30 +1328,55 @@ function showToast(msg,type='success') {
 // ── INVENTORY (Materiallager) ──
 let editingInvId = null;
 let logMaterials = []; // [{invId, qty}] temp for current log entry
+var invCategoryFilter = 'Alle';
+
+function renderInvCategoryFilter() {
+  var el = document.getElementById('invCategoryFilter');
+  if (!el) return;
+  var cats = ['Alle'];
+  state.inventory.forEach(function(it){ if (it.category && cats.indexOf(it.category)===-1) cats.push(it.category); });
+  el.innerHTML = cats.map(function(c){
+    return '<div class="bike-selector-item' + (invCategoryFilter===c?' active':'') + '" onclick="setInvFilter(\''+c+'\')">' + c + '</div>';
+  }).join('');
+}
+function setInvFilter(cat) {
+  invCategoryFilter = cat;
+  renderInvCategoryFilter();
+  renderInventory();
+}
 
 function renderInventory() {
+  renderInvCategoryFilter();
   const el = document.getElementById('inventoryContent');
   if (!state.inventory.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon">📦</div><p>Noch kein Material im Lager.</p><button class="btn btn-primary" onclick="openInvModal()">+ Material hinzufügen</button></div>`;
     return;
   }
-  el.innerHTML = state.inventory.map(item => {
+  var items = state.inventory.filter(function(it){ return invCategoryFilter==='Alle' || it.category===invCategoryFilter; });
+  if (!items.length) { el.innerHTML = '<div style="color:var(--text2);font-size:0.85rem;padding:12px">Kein Material in dieser Kategorie.</div>'; return; }
+  el.innerHTML = items.map(item => {
     const unitPrice = (item.qty > 0 && item.price > 0) ? (item.price / item.qty) : 0;
     const stockValue = unitPrice * (item.stock||0);
-    return `<div class="maint-item" style="border-left-color:var(--accent2)">
+    const lowStock = (item.minStock != null && item.minStock > 0 && (item.stock||0) <= item.minStock);
+    const bike = item.bikeId ? state.bikes.find(b=>b.id===item.bikeId) : null;
+    const bikeName = bike ? bike.make + ' ' + bike.model : '';
+    return `<div class="maint-item" style="border-left-color:${lowStock ? 'var(--danger)' : 'var(--accent2)'}">
       <div class="maint-item-body">
-        <div class="maint-name">${item.name} <span style="font-size:0.75rem;color:var(--text2);font-weight:400">${item.category||''}</span></div>
+        <div class="maint-name">${item.name} <span style="font-size:0.75rem;color:var(--text2);font-weight:400">${item.category||''}</span>${lowStock ? ' <span class="status-badge status-overdue">🔴 Niedrig</span>' : ''}</div>
         <div class="maint-details">
-          Bestand: <strong style="color:var(--accent)">${(item.stock||0).toLocaleString('de-DE',{maximumFractionDigits:1})} ${item.unit}</strong>
+          Bestand: <strong style="color:${lowStock ? 'var(--danger)' : 'var(--accent)'}">${(item.stock||0).toLocaleString('de-DE',{maximumFractionDigits:1})} ${item.unit}</strong>
           ${unitPrice ? ` · ${unitPrice.toLocaleString('de-DE',{minimumFractionDigits:2})} €/${item.unit}` : ''}
           ${stockValue ? ` · Wert: ${stockValue.toLocaleString('de-DE',{minimumFractionDigits:2})} €` : ''}
-          ${item.date ? `<br>Gekauft: ${new Date(item.date).toLocaleDateString('de-DE')}` : ''}
+          ${item.minStock ? `<br>Mindestbestand: ${(+item.minStock).toLocaleString('de-DE',{maximumFractionDigits:1})} ${item.unit}` : ''}
+          ${bikeName ? `<br>🏍️ ${bikeName}` : ''}
           ${item.notes ? `<br>${item.notes}` : ''}
         </div>
       </div>
-      <div class="maint-actions">
-        <button class="btn-icon" onclick="openInvModal('${item.id}')">✏️</button>
-        <button class="btn-icon" onclick="deleteInvItem('${item.id}')">🗑️</button>
+      <div class="maint-actions" style="flex-direction:column">
+        <button class="btn-icon" title="Nachkaufen" onclick="openRestockModal('${item.id}')">🛒</button>
+        <button class="btn-icon" title="Verlauf" onclick="openInvHistoryModal('${item.id}')">📊</button>
+        <button class="btn-icon" title="Bearbeiten" onclick="openInvModal('${item.id}')">✏️</button>
+        <button class="btn-icon" title="Löschen" onclick="deleteInvItem('${item.id}')">🗑️</button>
       </div>
     </div>`;
   }).join('');
@@ -1333,7 +1393,17 @@ function openInvModal(id) {
   document.getElementById('invPrice').value = item?.price||'';
   document.getElementById('invStock').value = (item?.stock != null ? item.stock : item?.qty) || '';
   document.getElementById('invDate').value = item?.date||new Date().toISOString().split('T')[0];
+  document.getElementById('invMinStock').value = item?.minStock||'';
   document.getElementById('invNotes').value = item?.notes||'';
+  // Populate bike select
+  var sel = document.getElementById('invBike');
+  sel.innerHTML = '<option value="">Universell</option>';
+  state.bikes.forEach(function(b) {
+    var opt = document.createElement('option');
+    opt.value = b.id; opt.textContent = b.icon + ' ' + b.make + ' ' + b.model;
+    sel.appendChild(opt);
+  });
+  if (item && item.bikeId) sel.value = item.bikeId;
   document.getElementById('invModal').classList.add('open');
 }
 function closeInvModal() { document.getElementById('invModal').classList.remove('open'); editingInvId=null; }
@@ -1345,11 +1415,17 @@ function saveInvItem() {
     name, unit:document.getElementById('invUnit').value, category:document.getElementById('invCategory').value,
     qty:+document.getElementById('invQty').value||0, price:+document.getElementById('invPrice').value||0,
     stock:+document.getElementById('invStock').value||0, date:document.getElementById('invDate').value||null,
+    minStock:+document.getElementById('invMinStock').value||0,
+    bikeId:document.getElementById('invBike').value||null,
     notes:document.getElementById('invNotes').value.trim()
   };
   if (editingInvId) {
-    Object.assign(state.inventory.find(x=>x.id===editingInvId), data);
+    var existing = state.inventory.find(x=>x.id===editingInvId);
+    // preserve history
+    data.history = existing.history || [];
+    Object.assign(existing, data);
   } else {
+    data.history = [{type:'Anlage', qty:data.stock, date:data.date||new Date().toISOString().split('T')[0]}];
     state.inventory.push({ id:uid(), ...data });
   }
   save(); closeInvModal(); renderInventory(); showToast('✅ Material gespeichert');
@@ -1360,6 +1436,73 @@ function deleteInvItem(id) {
   state.inventory = state.inventory.filter(x=>x.id!==id);
   save(); renderInventory(); showToast('🗑️ Gelöscht');
 }
+
+// ── NACHKAUF ──
+var restockItemId = null;
+function openRestockModal(id) {
+  restockItemId = id;
+  var item = state.inventory.find(function(x){return x.id===id;});
+  if (!item) return;
+  var unitPrice = (item.qty > 0 && item.price > 0) ? (item.price / item.qty) : 0;
+  document.getElementById('restockTitle').textContent = '🛒 ' + item.name + ' nachkaufen';
+  document.getElementById('restockInfo').innerHTML = 'Aktuell: <strong>' + (item.stock||0).toLocaleString('de-DE',{maximumFractionDigits:1}) + ' ' + item.unit + '</strong>' + (unitPrice ? ' zu ' + unitPrice.toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €/' + item.unit : '');
+  document.getElementById('restockQty').value = '';
+  document.getElementById('restockPrice').value = '';
+  document.getElementById('restockDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('restockModal').classList.add('open');
+}
+function closeRestockModal() { document.getElementById('restockModal').classList.remove('open'); restockItemId=null; }
+function saveRestock() {
+  var item = state.inventory.find(function(x){return x.id===restockItemId;});
+  if (!item) return;
+  var addQty = +document.getElementById('restockQty').value || 0;
+  var addPrice = +document.getElementById('restockPrice').value || 0;
+  var date = document.getElementById('restockDate').value || new Date().toISOString().split('T')[0];
+  if (!addQty) { showToast('Menge angeben','error'); return; }
+  // Weighted average (Option A):
+  var oldStock = +item.stock || 0;
+  var oldUnitPrice = (item.qty > 0 && item.price > 0) ? (item.price / item.qty) : 0;
+  var oldValue = oldStock * oldUnitPrice;
+  var newValue = oldValue + addPrice;
+  var newStock = oldStock + addQty;
+  item.stock = newStock;
+  // Store the new total qty/price basis so unitPrice reflects weighted average
+  item.qty = newStock;
+  item.price = newValue;
+  if (!item.history) item.history = [];
+  item.history.push({ type:'Nachkauf', qty:addQty, price:addPrice, date:date });
+  save(); closeRestockModal(); renderInventory();
+  var newUnitPrice = newStock > 0 ? newValue / newStock : 0;
+  showToast('🛒 +' + addQty + ' ' + item.unit + ' · neuer Ø ' + newUnitPrice.toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €/' + item.unit);
+}
+
+// ── VERBRAUCHSHISTORIE ──
+function openInvHistoryModal(id) {
+  var item = state.inventory.find(function(x){return x.id===id;});
+  if (!item) return;
+  document.getElementById('invHistoryTitle').textContent = '📊 ' + item.name;
+  var hist = (item.history || []).slice().sort(function(a,b){ return a.date > b.date ? -1 : 1; });
+  var html = '';
+  if (!hist.length) {
+    html = '<div style="color:var(--text2);font-size:0.85rem;padding:12px">Noch keine Bewegungen erfasst.</div>';
+  } else {
+    var icons = {'Anlage':'📦','Nachkauf':'🛒','Verbrauch':'🔧'};
+    html = hist.map(function(h) {
+      var qtyStr = (h.type==='Verbrauch' ? '−' : '+') + (h.qty||0).toLocaleString('de-DE',{maximumFractionDigits:1}) + ' ' + item.unit;
+      var color = h.type==='Verbrauch' ? 'var(--danger)' : 'var(--success)';
+      var extra = '';
+      if (h.price) extra = ' · ' + (+h.price).toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €';
+      if (h.ref) extra += ' · ' + h.ref;
+      return '<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.85rem">' +
+        '<span>' + (icons[h.type]||'') + ' ' + new Date(h.date).toLocaleDateString('de-DE') + ' <span style="color:var(--text2)">' + h.type + '</span></span>' +
+        '<span style="color:' + color + ';font-weight:600">' + qtyStr + '<span style="color:var(--text2);font-weight:400">' + extra + '</span></span>' +
+      '</div>';
+    }).join('');
+  }
+  document.getElementById('invHistoryContent').innerHTML = html;
+  document.getElementById('invHistoryModal').classList.add('open');
+}
+function closeInvHistoryModal() { document.getElementById('invHistoryModal').classList.remove('open'); }
 
 // ── MATERIAL IN LOG ──
 function addLogMaterial() {
