@@ -27,8 +27,12 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - Automatische Foto-Komprimierung
 
 ### 📦 Materiallager
-- Material anlegen mit Kaufmenge, Preis, Bestand
+- Material anlegen mit Kaufmenge, Preis, Bestand, Mindestbestand, Motorrad-Zuordnung
 - Beim Service: Material wählen → Kosten automatisch, Bestand reduziert
+- **Nachkaufen** — Bestand auffüllen, Stückpreis als gewichteter Durchschnitt
+- **Verbrauchshistorie** — jede Anlage/Nachkauf/Verbrauch mit Datum
+- **Niedrigbestand-Warnung** bei Unterschreitung des Mindestbestands
+- **Kategorie-Filter** im Lager
 
 ### 🏁 Trackdays
 - Rennstrecken-Termine planen (Strecke, Veranstalter, Motorrad, Status)
