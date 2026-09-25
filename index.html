@@ -510,7 +510,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v33</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v34</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -704,7 +704,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       </div>
     </div>
     <div class="form-group"><label>Motorrad</label><select id="tdBike" onchange="populateTdTyreSetups()"><option value="">—</option></select></div>
-    <div class="form-group"><label>🛞 Reifen-Setup</label><select id="tdTyreSetup"><option value="">—</option></select></div>
+    <div class="form-group"><label>🛞 Reifen-Setups</label><div id="tdTyreSetups" style="background:var(--surface2);border-radius:8px;padding:8px"></div></div>
 
     <div class="section-label" style="margin-top:8px">SCHNELL-ANLAGE (mehrere Tage)</div>
     <div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px">
@@ -2279,6 +2279,12 @@ function renderTdCard(td) {
         '📅 ' + dateStr +
         (td.organizer ? ' · ' + td.organizer : '') +
         (bikeName ? '<br>🏍️ ' + bikeName : '') +
+        (function(){
+          var ids = td.tyreSetupIds || (td.tyreSetupId ? [td.tyreSetupId] : []);
+          if (!ids.length || !bike || !bike.tyreSetups) return '';
+          var names = ids.map(function(id){ var s=bike.tyreSetups.find(function(x){return x.id===id;}); return s?(s.name||s.type):null; }).filter(Boolean);
+          return names.length ? '<br>🛞 ' + names.join(', ') : '';
+        })() +
         dayLines +
         (total_cost ? '<br>💶 Gesamt: ' + total_cost.toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €' : '') +
         (total > 0 ? '<br>📋 Checkliste: ' + checked + '/' + total + (checked===total && total>0 ? ' ✅' : '') : '') +
@@ -2415,28 +2421,38 @@ function openTrackdayModal(id) {
     sel.appendChild(opt);
   });
   if (td && td.bikeId) sel.value = td.bikeId;
+  tdSelectedSetups = (td && td.tyreSetupIds) ? td.tyreSetupIds.slice() : (td && td.tyreSetupId ? [td.tyreSetupId] : []);
   populateTdTyreSetups();
-  if (td && td.tyreSetupId) document.getElementById('tdTyreSetup').value = td.tyreSetupId;
   document.getElementById('trackdayModal').classList.add('open');
 }
 function closeTrackdayModal() { document.getElementById('trackdayModal').classList.remove('open'); editingTrackdayId = null; }
 
+var tdSelectedSetups = [];
+
 function populateTdTyreSetups() {
   var bikeId = document.getElementById('tdBike').value;
-  var sel = document.getElementById('tdTyreSetup');
-  var prev = sel.value;
-  sel.innerHTML = '<option value="">—</option>';
+  var el = document.getElementById('tdTyreSetups');
   var bike = state.bikes.find(function(b){return b.id===bikeId;});
-  if (bike && bike.tyreSetups) {
-    bike.tyreSetups.forEach(function(s){
-      var opt = document.createElement('option');
-      opt.value = s.id;
-      opt.textContent = (s.name||s.type) + (s.type ? ' ('+s.type+')' : '');
-      sel.appendChild(opt);
-    });
+  if (!bike || !bike.tyreSetups || !bike.tyreSetups.length) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:0.8rem">Keine Setups für dieses Motorrad</div>';
+    return;
   }
-  // keep previous if still valid
-  if (prev && sel.querySelector('option[value="'+prev+'"]')) sel.value = prev;
+  // Drop selections that no longer exist on this bike
+  var validIds = bike.tyreSetups.map(function(s){return s.id;});
+  tdSelectedSetups = tdSelectedSetups.filter(function(id){ return validIds.indexOf(id)!==-1; });
+  el.innerHTML = bike.tyreSetups.map(function(s){
+    var checked = tdSelectedSetups.indexOf(s.id)!==-1;
+    var label = (s.name||s.type) + (s.type ? ' ('+s.type+')' : '');
+    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 2px;min-height:38px;cursor:pointer">' +
+      '<input type="checkbox" ' + (checked?'checked':'') + ' onchange="toggleTdSetup(\''+s.id+'\',this.checked)" style="width:18px;height:18px;accent-color:var(--accent)" />' +
+      '<span style="font-size:0.88rem">'+label+'</span></label>';
+  }).join('');
+}
+
+function toggleTdSetup(id, on) {
+  var i = tdSelectedSetups.indexOf(id);
+  if (on && i===-1) tdSelectedSetups.push(id);
+  if (!on && i!==-1) tdSelectedSetups.splice(i,1);
 }
 
 function saveTrackday() {
@@ -2450,13 +2466,13 @@ function saveTrackday() {
     track: track, status: document.getElementById('tdStatus').value,
     organizer: document.getElementById('tdOrganizer').value.trim(),
     bikeId: document.getElementById('tdBike').value || null,
-    tyreSetupId: document.getElementById('tdTyreSetup').value || null,
+    tyreSetupIds: tdSelectedSetups.slice(),
     notes: document.getElementById('tdNotes').value.trim(),
     days: days
   };
   if (editingTrackdayId) {
     var td = state.trackdays.find(function(x){return x.id===editingTrackdayId;});
-    if (td) { for (var k in data) td[k] = data[k]; }
+    if (td) { delete td.tyreSetupId; for (var k in data) td[k] = data[k]; }
   } else {
     data.id = uid();
     data.checklist = buildDefaultChecklist();
@@ -2731,7 +2747,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v33';
+var APP_VERSION = 'v34';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
