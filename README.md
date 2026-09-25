@@ -14,6 +14,7 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - km-Stand mit Datum — schnelle Aktualisierung direkt von der Karte
 - HU/TÜV Fälligkeit mit Ampel-Status (✅ OK / ⚠️ Bald / 🔴 Überfällig)
 - "Kein TÜV"-Flag für Rennstrecken-Motorräder
+- **Detailansicht** (ℹ️) — alle Infos, Reifen-Setups und Statistik eines Motorrads ansehen ohne Bearbeiten-Modus
 
 ### 🛞 Reifen
 - Reifen-Setups pro Motorrad (Straße = nur Kaltdruck, Rennstrecke = kalt + warm)
