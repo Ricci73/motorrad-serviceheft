@@ -2651,6 +2651,10 @@ function openTrackdayDetail(id) {
   document.getElementById('tdDetailContent').innerHTML = html;
   document.getElementById('tdDetailEditBtn').onclick = function(){ closeTrackdayDetail(); openTrackdayModal(id); };
   document.getElementById('tdDetailChecklistBtn').onclick = function(){ closeTrackdayDetail(); openChecklistForTd(id); };
+  // Bei erledigten/stornierten Events Edit- und Checklisten-Button ausblenden
+  var finished = (td.status === 'Erledigt' || td.status === 'Storniert');
+  document.getElementById('tdDetailEditBtn').style.display = finished ? 'none' : '';
+  document.getElementById('tdDetailChecklistBtn').style.display = finished ? 'none' : '';
   document.getElementById('trackdayDetailModal').classList.add('open');
 }
 function closeTrackdayDetail() { document.getElementById('trackdayDetailModal').classList.remove('open'); }
