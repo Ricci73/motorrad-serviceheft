@@ -408,6 +408,11 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <button type="button" class="btn btn-secondary btn-sm" onclick="addLogMaterial()" style="margin-top:8px;width:100%;justify-content:center">+ Material hinzufügen</button>
     </div>
     <div class="form-group">
+      <label>🛞 Reifen aus Vorrat (bei Reifenwechsel)</label>
+      <div id="logTyreList"></div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addLogTyre()" style="margin-top:8px;width:100%;justify-content:center">+ Reifen aus Vorrat</button>
+    </div>
+    <div class="form-group">
       <label>Fotos / Belege</label>
       <div style="display:flex;gap:8px">
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('photoCam').click()" style="flex:1;justify-content:center;min-height:48px">📸 Kamera</button>
@@ -523,7 +528,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v38</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v39</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -572,11 +577,16 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
   <div class="page" id="page-inventory">
     <div class="page-header">
-      <div class="page-title">📦 Materiallager</div>
-      <button class="btn btn-primary btn-sm" onclick="openInvModal()">+ Material</button>
+      <div class="page-title" id="invPageTitle">📦 Materiallager</div>
+      <button class="btn btn-primary btn-sm" id="invAddBtn" onclick="onInvAdd()">+ Material</button>
+    </div>
+    <div class="bike-selector" style="margin-bottom:12px">
+      <div class="bike-selector-item active" id="invTabMaterial" onclick="switchInvTab('material')">📦 Material</div>
+      <div class="bike-selector-item" id="invTabTyres" onclick="switchInvTab('tyres')">🛞 Reifen</div>
     </div>
     <div class="bike-selector" id="invCategoryFilter"></div>
     <div id="inventoryContent"></div>
+    <div id="tyreStockContent" style="display:none"></div>
   </div>
 
   <div class="page" id="page-trackdays">
@@ -608,7 +618,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
         <select id="invUnit"><option>Liter</option><option>Stück</option><option>Meter</option><option>Set</option><option>Paar</option></select>
       </div>
       <div class="form-group"><label>Kategorie</label>
-        <select id="invCategory"><option>Öl</option><option>Filter</option><option>Bremsen</option><option>Kette</option><option>Reifen</option><option>Elektrik</option><option>Sonstiges</option></select>
+        <select id="invCategory"><option>Öl</option><option>Filter</option><option>Bremsen</option><option>Kette</option><option>Elektrik</option><option>Sonstiges</option></select>
       </div>
     </div>
     <div class="form-row">
@@ -627,6 +637,38 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeInvModal()">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveInvItem()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Reifen-Vorrat Eintrag ── -->
+<div class="modal-overlay" id="tyreStockModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="tsTitle">Reifen hinzufügen</div><button class="btn-icon" onclick="closeTyreStockModal()">✕</button></div>
+    <div class="form-group"><label>Reifen (aus Reifentabelle)</label>
+      <select id="tsTyreRef" onchange="tsApplyRef()"><option value="">— manuell eingeben —</option></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Modell *</label><input id="tsModell" list="tyreModelList" autocomplete="off" placeholder="Diablo Supercorsa V3" /></div>
+      <div class="form-group"><label>Größe</label><input id="tsGroesse" list="tyreSizeList" autocomplete="off" placeholder="120/70 ZR17" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Position</label><select id="tsPosition"><option>Vorne</option><option>Hinten</option></select></div>
+      <div class="form-group"><label>Bestand (Stück)</label><input id="tsStock" type="number" inputmode="numeric" placeholder="2" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Preis/Stück (€)</label><input id="tsPrice" type="number" inputmode="decimal" step="0.01" /></div>
+      <div class="form-group"><label>Mindestbestand</label><input id="tsMinStock" type="number" inputmode="numeric" placeholder="1" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>DOT</label><input id="tsDot" placeholder="z.B. 2624" /></div>
+      <div class="form-group"><label>Kaufdatum</label><input id="tsDate" type="date" /></div>
+    </div>
+    <div class="form-group"><label>Notizen</label><textarea id="tsNotes"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTyreStockModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveTyreStock()">💾 Speichern</button>
     </div>
   </div>
 </div>
@@ -824,12 +866,12 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <script>
 // ── DATA ──
-let state = { bikes:[], maintenance:{}, logs:{}, inventory:[], trackdays:[], masterChecklist:null, tyreTable:null, selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
+let state = { bikes:[], maintenance:{}, logs:{}, inventory:[], trackdays:[], masterChecklist:null, tyreTable:null, tyreStock:[], selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
 
 function save() {
   // Dual-write: IndexedDB (primary) + localStorage (fallback)
   dbSave();
-  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist, tyreTable:state.tyreTable, tyreTable:state.tyreTable })); } catch(e) {}
+  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist, tyreTable:state.tyreTable, tyreStock:state.tyreStock })); } catch(e) {}
 }
 
 // ── IndexedDB ──
@@ -854,7 +896,7 @@ function dbSave() {
   dbOpen().then(db => {
     const tx = db.transaction('appdata', 'readwrite');
     const store = tx.objectStore('appdata');
-    store.put({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist, tyreTable:state.tyreTable, tyreTable:state.tyreTable }, 'state');
+    store.put({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist, tyreTable:state.tyreTable, tyreStock:state.tyreStock }, 'state');
   }).catch(()=>{});
 }
 
@@ -875,7 +917,7 @@ async function load() {
   try {
     let data = await dbLoad();
     if (data && data.bikes && data.bikes.length) {
-      state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[]; state.trackdays = data.trackdays||[]; state.masterChecklist = data.masterChecklist||null; state.tyreTable = data.tyreTable||null;
+      state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[]; state.trackdays = data.trackdays||[]; state.masterChecklist = data.masterChecklist||null; state.tyreTable = data.tyreTable||null; state.tyreStock = data.tyreStock||[];
       state.selectedBike = state.bikes[0]?.id || null;
       return;
     }
@@ -885,7 +927,7 @@ async function load() {
     const d = localStorage.getItem('moto_serviceheft');
     if (d) {
       const p = JSON.parse(d);
-      state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[]; state.trackdays = p.trackdays||[]; state.masterChecklist = p.masterChecklist||null; state.tyreTable = p.tyreTable||null;
+      state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[]; state.trackdays = p.trackdays||[]; state.masterChecklist = p.masterChecklist||null; state.tyreTable = p.tyreTable||null; state.tyreStock = p.tyreStock||[];
       dbSave(); // migrate to IndexedDB
     }
   } catch(e) {}
@@ -1501,6 +1543,7 @@ function renderLogbook() {
         ${log.workshop?`<div style="color:var(--text2);font-size:0.8rem">🔧 ${log.workshop}</div>`:''}
         ${log.notes?`<div class="log-notes">${log.notes}</div>`:''}
         ${renderLogMats(log.materials)}
+        ${(log.tyres&&log.tyres.length)?`<div style="margin-top:4px;font-size:0.78rem;color:var(--text2)">🛞 ${log.tyres.map(t=>`${t.name} ${t.groesse||''} (${t.position}, ${t.qty} Stk${t.cost?', '+t.cost.toLocaleString('de-DE',{minimumFractionDigits:2})+' €':''})`).join(', ')}</div>`:''}
         ${photos?`<div class="log-photos">${photos}</div>`:''}
       </div>
       <button class="btn-icon" onclick="deleteLog('${log.id}')">🗑️</button>
@@ -1518,6 +1561,8 @@ function openLogModal() {
   state.pendingPhotos=[];
   logMaterials=[];
   renderLogMaterials();
+  logTyres=[];
+  renderLogTyres();
   document.getElementById('logModal').classList.add('open');
 }
 function closeLogModal() { document.getElementById('logModal').classList.remove('open'); }
@@ -1585,12 +1630,24 @@ function saveLog() {
     inv.history.push({ type:'Verbrauch', qty:m.qty, date:date, ref:type });
     usedMaterials.push({ name:inv.name, qty:m.qty, unit:inv.unit, cost:Math.round(cost*100)/100 });
   });
-  const totalCost = (+document.getElementById('lCost').value||0) + materialCost;
-  const log={id:uid(),date,km:+km,type,cost:Math.round(totalCost*100)/100,workshop:document.getElementById('lWorkshop').value.trim(),notes:document.getElementById('lNotes').value.trim(),photos:[...state.pendingPhotos],materials:usedMaterials};
+  // Reifen aus Vorrat abziehen
+  var tyreCost = 0;
+  var usedTyres = [];
+  logTyres.forEach(function(m){
+    if (!m.tyreId || !m.qty) return;
+    var t = (state.tyreStock||[]).find(function(x){return x.id===m.tyreId;});
+    if (!t) return;
+    var cost = (t.price||0) * m.qty;
+    tyreCost += cost;
+    t.stock = Math.max(0, (t.stock||0) - m.qty);
+    usedTyres.push({ name:t.modell, groesse:t.groesse, position:t.position, qty:m.qty, cost:Math.round(cost*100)/100 });
+  });
+  const totalCost = (+document.getElementById('lCost').value||0) + materialCost + tyreCost;
+  const log={id:uid(),date,km:+km,type,cost:Math.round(totalCost*100)/100,workshop:document.getElementById('lWorkshop').value.trim(),notes:document.getElementById('lNotes').value.trim(),photos:[...state.pendingPhotos],materials:usedMaterials,tyres:usedTyres};
   state.logs[state.selectedBike].unshift(log);
   const bike=state.bikes.find(b=>b.id===state.selectedBike);
   if (bike&&+km>(bike.km||0)) { bike.km=+km; bike.kmDate=date; if(!bike.kmHistory)bike.kmHistory=[]; bike.kmHistory.push({km:+km,date:date}); }
-  save(); closeLogModal(); renderStats(); renderLogbook(); showToast(`✅ Eintrag gespeichert${materialCost?` (Material: ${materialCost.toLocaleString('de-DE',{minimumFractionDigits:2})} €)`:''}`);
+  save(); closeLogModal(); renderStats(); renderLogbook(); showToast('✅ Eintrag gespeichert'+((materialCost||tyreCost)?' (+'+(materialCost+tyreCost).toLocaleString('de-DE',{minimumFractionDigits:2})+' € Material/Reifen)':''));
 }
 function deleteLog(id) {
   if (!confirm('Eintrag löschen?')) return;
@@ -1603,7 +1660,7 @@ function openPhoto(src) { document.getElementById('photoModalImg').src=src; docu
 function openDataModal() { document.getElementById('dataModal').classList.add('open'); }
 function closeDataModal() { document.getElementById('dataModal').classList.remove('open'); }
 function exportJSON() {
-  const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs,inventory:state.inventory,trackdays:state.trackdays,masterChecklist:state.masterChecklist,tyreTable:state.tyreTable};
+  const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs,inventory:state.inventory,trackdays:state.trackdays,masterChecklist:state.masterChecklist,tyreTable:state.tyreTable,tyreStock:state.tyreStock};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=`motorrad-backup-${new Date().toISOString().split('T')[0]}.json`;
@@ -1653,6 +1710,7 @@ function importJSON(event) {
         // Merge master checklist only if we don't have one yet
         if (data.masterChecklist && !state.masterChecklist) state.masterChecklist = data.masterChecklist;
         if (data.tyreTable && !state.tyreTable) state.tyreTable = data.tyreTable;
+        if (Array.isArray(data.tyreStock)) { if(!state.tyreStock)state.tyreStock=[]; data.tyreStock.forEach(function(t){ if(!state.tyreStock.find(function(x){return x.id===t.id;})) state.tyreStock.push(t); }); }
         if (!state.selectedBike&&state.bikes.length) state.selectedBike=state.bikes[0].id;
         var msgParts=[];
         if(added) msgParts.push(added+' Motorrad/Motorräder');
@@ -1813,6 +1871,120 @@ function setInvFilter(cat) {
   invCategoryFilter = cat;
   renderInvCategoryFilter();
   renderInventory();
+}
+
+// ── LAGER TAB (Material / Reifen) ──
+var invTab = 'material';
+function switchInvTab(tab) {
+  invTab = tab;
+  document.getElementById('invTabMaterial').classList.toggle('active', tab==='material');
+  document.getElementById('invTabTyres').classList.toggle('active', tab==='tyres');
+  var isMat = tab==='material';
+  document.getElementById('inventoryContent').style.display = isMat ? '' : 'none';
+  document.getElementById('invCategoryFilter').style.display = isMat ? '' : 'none';
+  document.getElementById('tyreStockContent').style.display = isMat ? 'none' : '';
+  document.getElementById('invPageTitle').textContent = isMat ? '📦 Materiallager' : '🛞 Reifen-Vorrat';
+  document.getElementById('invAddBtn').textContent = isMat ? '+ Material' : '+ Reifen';
+  if (isMat) renderInventory(); else renderTyreStock();
+}
+function onInvAdd() {
+  if (invTab==='material') openInvModal(); else openTyreStockModal();
+}
+
+// ── REIFEN-VORRAT ──
+var editingTyreStockId = null;
+
+function renderTyreStock() {
+  var el = document.getElementById('tyreStockContent');
+  var stock = state.tyreStock || [];
+  if (!stock.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">🛞</div><p>Noch keine Reifen im Vorrat.</p><button class="btn btn-primary" onclick="openTyreStockModal()">+ Reifen hinzufügen</button></div>';
+    return;
+  }
+  el.innerHTML = stock.map(function(t){
+    var lowStock = (t.minStock != null && t.minStock > 0 && (t.stock||0) <= t.minStock);
+    var posIcon = t.position === 'Hinten' ? '⬇️' : '⬆️';
+    return '<div class="maint-item" style="border-left-color:'+(lowStock?'var(--danger)':'var(--accent2)')+';flex-direction:column;align-items:stretch">' +
+      '<div class="maint-item-body">' +
+        '<div class="maint-name">'+t.modell+' <span style="font-size:0.75rem;color:var(--text2);font-weight:400">'+(t.groesse||'')+'</span>'+(lowStock?' <span class="status-badge status-overdue">🔴 Niedrig</span>':'')+'</div>' +
+        '<div class="maint-details">' +
+          posIcon+' '+t.position+' · Bestand: <strong style="color:'+(lowStock?'var(--danger)':'var(--accent)')+'">'+(t.stock||0)+' Stk</strong>' +
+          (t.price ? ' · '+(+t.price).toLocaleString('de-DE',{minimumFractionDigits:2})+' €/Stk' : '') +
+          (t.dot ? '<br>DOT: '+t.dot : '') +
+          (t.date ? ' · '+new Date(t.date).toLocaleDateString('de-DE') : '') +
+          (t.notes ? '<br>'+t.notes : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="maint-actions" style="justify-content:flex-end;gap:4px;margin-top:8px;border-top:1px solid var(--border);padding-top:8px">' +
+        '<button class="btn-icon" title="Bearbeiten" onclick="openTyreStockModal(\''+t.id+'\')">✏️</button>' +
+        '<button class="btn-icon" title="Löschen" onclick="deleteTyreStock(\''+t.id+'\')">🗑️</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function openTyreStockModal(id) {
+  editingTyreStockId = id || null;
+  var t = id ? state.tyreStock.find(function(x){return x.id===id;}) : null;
+  document.getElementById('tsTitle').textContent = id ? 'Reifen bearbeiten' : 'Reifen hinzufügen';
+  // populate reference dropdown from tyreTable
+  var ref = document.getElementById('tsTyreRef');
+  ref.innerHTML = '<option value="">— manuell eingeben —</option>';
+  getTyreTable().forEach(function(rt){
+    var o = document.createElement('option');
+    o.value = rt.id; o.textContent = rt.hersteller+' '+rt.modell+' '+rt.groesse;
+    ref.appendChild(o);
+  });
+  ref.value = '';
+  document.getElementById('tsModell').value = t?t.modell:'';
+  document.getElementById('tsGroesse').value = t?(t.groesse||''):'';
+  document.getElementById('tsPosition').value = t?t.position:'Vorne';
+  document.getElementById('tsStock').value = t?(t.stock||''):'';
+  document.getElementById('tsPrice').value = t?(t.price||''):'';
+  document.getElementById('tsMinStock').value = t?(t.minStock||''):'';
+  document.getElementById('tsDot').value = t?(t.dot||''):'';
+  document.getElementById('tsDate').value = t?(t.date||''):new Date().toISOString().split('T')[0];
+  document.getElementById('tsNotes').value = t?(t.notes||''):'';
+  document.getElementById('tyreStockModal').classList.add('open');
+}
+function closeTyreStockModal() { document.getElementById('tyreStockModal').classList.remove('open'); editingTyreStockId=null; }
+
+function tsApplyRef() {
+  var id = document.getElementById('tsTyreRef').value;
+  if (!id) return;
+  var rt = getTyreTable().find(function(x){return x.id===id;});
+  if (!rt) return;
+  document.getElementById('tsModell').value = rt.hersteller+' '+rt.modell;
+  document.getElementById('tsGroesse').value = rt.groesse || '';
+}
+
+function saveTyreStock() {
+  var modell = document.getElementById('tsModell').value.trim();
+  if (!modell) { showToast('Modell ist Pflicht','error'); return; }
+  if (!state.tyreStock) state.tyreStock = [];
+  var data = {
+    modell: modell,
+    groesse: document.getElementById('tsGroesse').value.trim(),
+    position: document.getElementById('tsPosition').value,
+    stock: +document.getElementById('tsStock').value || 0,
+    price: +document.getElementById('tsPrice').value || 0,
+    minStock: +document.getElementById('tsMinStock').value || 0,
+    dot: document.getElementById('tsDot').value.trim(),
+    date: document.getElementById('tsDate').value || null,
+    notes: document.getElementById('tsNotes').value.trim()
+  };
+  if (editingTyreStockId) {
+    Object.assign(state.tyreStock.find(function(x){return x.id===editingTyreStockId;}), data);
+  } else {
+    state.tyreStock.push({ id: uid(), ...data });
+  }
+  save(); closeTyreStockModal(); renderTyreStock(); showToast('✅ Reifen gespeichert');
+}
+
+function deleteTyreStock(id) {
+  if (!confirm('Reifen aus Vorrat löschen?')) return;
+  state.tyreStock = state.tyreStock.filter(function(x){return x.id!==id;});
+  save(); renderTyreStock(); showToast('🗑️ Gelöscht');
 }
 
 function renderInventory() {
@@ -1981,6 +2153,42 @@ function closeInvHistoryModal() { document.getElementById('invHistoryModal').cla
 function addLogMaterial() {
   logMaterials.push({ invId:'', qty:0 });
   renderLogMaterials();
+}
+
+// ── REIFEN AUS VORRAT (im Service-Eintrag) ──
+var logTyres = []; // [{tyreId, qty}]
+function addLogTyre() {
+  logTyres.push({ tyreId:'', qty:1 });
+  renderLogTyres();
+}
+function removeLogTyre(i) {
+  logTyres.splice(i,1);
+  renderLogTyres();
+}
+function renderLogTyres() {
+  var el = document.getElementById('logTyreList');
+  if (!logTyres.length) { el.innerHTML='<div style="color:var(--text2);font-size:0.8rem;padding:8px 0">Kein Reifen ausgewählt</div>'; return; }
+  var stock = state.tyreStock || [];
+  var opts = stock.map(function(t){ return '<option value="'+t.id+'">'+t.modell+' '+(t.groesse||'')+' ('+t.position+', '+(t.stock||0)+' Stk)</option>'; }).join('');
+  var html = '';
+  for (var i=0;i<logTyres.length;i++) {
+    var m = logTyres[i];
+    var t = stock.find(function(x){return x.id===m.tyreId;});
+    var cost = t ? (t.price||0)*(m.qty||0) : 0;
+    html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;background:var(--surface2);border-radius:8px;padding:10px">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<select onchange="logTyres['+i+'].tyreId=this.value;renderLogTyres()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:0.85rem;min-height:40px"><option value="">— Reifen wählen —</option>'+opts+'</select>';
+    html += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center">';
+    html += '<input type="number" inputmode="numeric" placeholder="Anzahl" value="'+(m.qty||'')+'" onchange="logTyres['+i+'].qty=+this.value;renderLogTyres()" style="width:80px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:0.85rem;min-height:36px" />';
+    html += '<span style="font-size:0.8rem;color:var(--text2)">Stk</span>';
+    if (cost) html += '<span style="font-size:0.8rem;color:var(--accent);font-weight:600;margin-left:auto">'+cost.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</span>';
+    html += '</div></div>';
+    html += '<button class="btn-icon" onclick="removeLogTyre('+i+')">✕</button>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+  var selects = el.querySelectorAll('select');
+  logTyres.forEach(function(m,i){ if(selects[i]) selects[i].value = m.tyreId; });
 }
 function removeLogMaterial(i) {
   logMaterials.splice(i,1);
@@ -2206,7 +2414,7 @@ function quickBackup() {
   var data = {
     version: 1, exportedAt: new Date().toISOString(),
     bikes: state.bikes, maintenance: state.maintenance, logs: state.logs,
-    inventory: state.inventory, trackdays: state.trackdays, masterChecklist: state.masterChecklist, tyreTable: state.tyreTable
+    inventory: state.inventory, trackdays: state.trackdays, masterChecklist: state.masterChecklist, tyreTable: state.tyreTable, tyreStock: state.tyreStock
   };
   var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
   var a = document.createElement('a');
@@ -2930,7 +3138,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v38';
+var APP_VERSION = 'v39';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
