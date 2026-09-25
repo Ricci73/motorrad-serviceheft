@@ -528,7 +528,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v41</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v42</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -673,17 +673,19 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
     </div>
     <div class="form-row">
       <div class="form-group"><label>Position</label><select id="tsPosition"><option>Vorne</option><option>Hinten</option></select></div>
-      <div class="form-group"><label>Kaufmenge (Stück)</label><input id="tsQty" type="number" inputmode="numeric" placeholder="2" /></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Bestand (Stück)</label><input id="tsStock" type="number" inputmode="numeric" placeholder="leer = Kaufmenge" /></div>
       <div class="form-group"><label>Mindestbestand</label><input id="tsMinStock" type="number" inputmode="numeric" placeholder="1" /></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>Preis/Stück (€)</label><input id="tsPrice" type="number" inputmode="decimal" step="0.01" /></div>
-      <div class="form-group"><label>DOT</label><input id="tsDot" placeholder="z.B. 2624" /></div>
+    <div id="tsFirstBatch">
+      <div style="font-size:0.8rem;color:var(--text2);margin:4px 0 6px;font-weight:600">Erste Charge</div>
+      <div class="form-row">
+        <div class="form-group"><label>Menge (Stück)</label><input id="tsQty" type="number" inputmode="numeric" placeholder="2" /></div>
+        <div class="form-group"><label>DOT</label><input id="tsDot" placeholder="z.B. 2624" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Preis/Stück (€)</label><input id="tsPrice" type="number" inputmode="decimal" step="0.01" /></div>
+        <div class="form-group"><label>Kaufdatum</label><input id="tsDate" type="date" /></div>
+      </div>
     </div>
-    <div class="form-group"><label>Kaufdatum</label><input id="tsDate" type="date" /></div>
     <div class="form-group"><label>Notizen</label><textarea id="tsNotes"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeTyreStockModal()">Abbrechen</button>
@@ -1562,7 +1564,7 @@ function renderLogbook() {
         ${log.workshop?`<div style="color:var(--text2);font-size:0.8rem">🔧 ${log.workshop}</div>`:''}
         ${log.notes?`<div class="log-notes">${log.notes}</div>`:''}
         ${renderLogMats(log.materials)}
-        ${(log.tyres&&log.tyres.length)?`<div style="margin-top:4px;font-size:0.78rem;color:var(--text2)">🛞 ${log.tyres.map(t=>`${t.name} ${t.groesse||''} (${t.position}, ${t.qty} Stk${t.cost?', '+t.cost.toLocaleString('de-DE',{minimumFractionDigits:2})+' €':''})`).join(', ')}</div>`:''}
+        ${(log.tyres&&log.tyres.length)?`<div style="margin-top:4px;font-size:0.78rem;color:var(--text2)">🛞 ${log.tyres.map(t=>`${t.name} ${t.groesse||''} (${t.position}, ${t.qty} Stk${t.dots?', '+t.dots:''}${t.cost?', '+t.cost.toLocaleString('de-DE',{minimumFractionDigits:2})+' €':''})`).join(', ')}</div>`:''}
         ${photos?`<div class="log-photos">${photos}</div>`:''}
       </div>
       <button class="btn-icon" onclick="deleteLog('${log.id}')">🗑️</button>
@@ -1656,10 +1658,9 @@ function saveLog() {
     if (!m.tyreId || !m.qty) return;
     var t = (state.tyreStock||[]).find(function(x){return x.id===m.tyreId;});
     if (!t) return;
-    var cost = (t.price||0) * m.qty;
-    tyreCost += cost;
-    t.stock = Math.max(0, (t.stock||0) - m.qty);
-    usedTyres.push({ name:t.modell, groesse:t.groesse, position:t.position, qty:m.qty, cost:Math.round(cost*100)/100 });
+    var res = tyreConsume(t, m.qty);
+    tyreCost += res.cost;
+    usedTyres.push({ name:t.modell, groesse:t.groesse, position:t.position, qty:res.taken, dots:res.dots.join(', '), cost:Math.round(res.cost*100)/100 });
   });
   const totalCost = (+document.getElementById('lCost').value||0) + materialCost + tyreCost;
   const log={id:uid(),date,km:+km,type,cost:Math.round(totalCost*100)/100,workshop:document.getElementById('lWorkshop').value.trim(),notes:document.getElementById('lNotes').value.trim(),photos:[...state.pendingPhotos],materials:usedMaterials,tyres:usedTyres};
@@ -1921,17 +1922,20 @@ function renderTyreStock() {
     return;
   }
   el.innerHTML = stock.map(function(t){
-    var lowStock = (t.minStock != null && t.minStock > 0 && (t.stock||0) <= t.minStock);
+    tyreEnsureBatches(t);
+    var count = tyreStockCount(t);
+    var lowStock = (t.minStock != null && t.minStock > 0 && count <= t.minStock);
     var posIcon = t.position === 'Hinten' ? '⬇️' : '⬆️';
+    var batchLines = t.batches.filter(function(b){return (b.qty||0)>0;}).map(function(b){
+      return '<div style="font-size:0.78rem;color:var(--text2);padding-left:12px">• '+(b.qty||0)+'× ' + (b.dot ? 'DOT '+b.dot : 'ohne DOT') + (b.price?' · '+(+b.price).toLocaleString('de-DE',{minimumFractionDigits:2})+' €/Stk':'') + (b.date?' · '+new Date(b.date).toLocaleDateString('de-DE'):'') + '</div>';
+    }).join('');
     return '<div class="maint-item" style="border-left-color:'+(lowStock?'var(--danger)':'var(--accent2)')+';flex-direction:column;align-items:stretch">' +
       '<div class="maint-item-body">' +
         '<div class="maint-name">'+t.modell+' <span style="font-size:0.75rem;color:var(--text2);font-weight:400">'+(t.groesse||'')+'</span>'+(lowStock?' <span class="status-badge status-overdue">🔴 Niedrig</span>':'')+'</div>' +
         '<div class="maint-details">' +
-          posIcon+' '+t.position+' · Bestand: <strong style="color:'+(lowStock?'var(--danger)':'var(--accent)')+'">'+(t.stock||0)+' Stk</strong>' +
-          (t.price ? ' · '+(+t.price).toLocaleString('de-DE',{minimumFractionDigits:2})+' €/Stk' : '') +
-          (t.dot ? '<br>DOT: '+t.dot : '') +
-          (t.date ? ' · '+new Date(t.date).toLocaleDateString('de-DE') : '') +
-          (t.notes ? '<br>'+t.notes : '') +
+          posIcon+' '+t.position+' · Bestand: <strong style="color:'+(lowStock?'var(--danger)':'var(--accent)')+'">'+count+' Stk</strong>' +
+          (batchLines ? '<div style="margin-top:4px">'+batchLines+'</div>' : '') +
+          (t.notes ? '<div style="margin-top:4px">'+t.notes+'</div>' : '') +
         '</div>' +
       '</div>' +
       '<div class="maint-actions" style="justify-content:flex-end;gap:4px;margin-top:8px;border-top:1px solid var(--border);padding-top:8px">' +
@@ -1941,6 +1945,34 @@ function renderTyreStock() {
       '</div>' +
     '</div>';
   }).join('');
+}
+
+// Bestand = Summe aller Chargen
+function tyreStockCount(t) { tyreEnsureBatches(t); return t.batches.reduce(function(s,b){return s+(+b.qty||0);},0); }
+// Legacy-Einträge (dot/stock/price direkt) → in eine Charge migrieren
+function tyreEnsureBatches(t) {
+  if (Array.isArray(t.batches)) return;
+  t.batches = [];
+  if ((t.stock||0) > 0 || t.dot) {
+    t.batches.push({ dot: t.dot||'', qty: t.stock||0, price: t.price||0, date: t.date||null });
+  }
+}
+// FIFO-Verbrauch: älteste Charge zuerst; gibt {taken, cost, dots} zurück
+function tyreConsume(t, qty) {
+  tyreEnsureBatches(t);
+  var remaining = qty, cost = 0, dots = [];
+  for (var i=0;i<t.batches.length && remaining>0;i++) {
+    var b = t.batches[i];
+    var take = Math.min(b.qty||0, remaining);
+    if (take > 0) {
+      cost += (b.price||0) * take;
+      if (b.dot) dots.push(take+'× DOT '+b.dot);
+    }
+    b.qty = (b.qty||0) - take;
+    remaining -= take;
+  }
+  t.batches = t.batches.filter(function(b){return (b.qty||0)>0;});
+  return { taken: qty - remaining, cost: cost, dots: dots };
 }
 
 function openTyreStockModal(id) {
@@ -1959,13 +1991,14 @@ function openTyreStockModal(id) {
   document.getElementById('tsModell').value = t?t.modell:'';
   document.getElementById('tsGroesse').value = t?(t.groesse||''):'';
   document.getElementById('tsPosition').value = t?t.position:'Vorne';
-  document.getElementById('tsQty').value = t?(t.qty||''):'';
-  document.getElementById('tsStock').value = t?(t.stock||''):'';
-  document.getElementById('tsPrice').value = t?(t.price||''):'';
   document.getElementById('tsMinStock').value = t?(t.minStock||''):'';
-  document.getElementById('tsDot').value = t?(t.dot||''):'';
-  document.getElementById('tsDate').value = t?(t.date||''):new Date().toISOString().split('T')[0];
   document.getElementById('tsNotes').value = t?(t.notes||''):'';
+  // Charge-Felder nur beim Anlegen (beim Bearbeiten via Nachkaufen/Verbrauch)
+  document.getElementById('tsFirstBatch').style.display = id ? 'none' : '';
+  document.getElementById('tsQty').value = '';
+  document.getElementById('tsDot').value = '';
+  document.getElementById('tsPrice').value = '';
+  document.getElementById('tsDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('tyreStockModal').classList.add('open');
 }
 function closeTyreStockModal() { document.getElementById('tyreStockModal').classList.remove('open'); editingTyreStockId=null; }
@@ -1983,25 +2016,27 @@ function saveTyreStock() {
   var modell = document.getElementById('tsModell').value.trim();
   if (!modell) { showToast('Modell ist Pflicht','error'); return; }
   if (!state.tyreStock) state.tyreStock = [];
-  var data = {
+  var meta = {
     modell: modell,
     groesse: document.getElementById('tsGroesse').value.trim(),
     position: document.getElementById('tsPosition').value,
-    qty: +document.getElementById('tsQty').value || 0,
-    stock: +document.getElementById('tsStock').value || 0,
-    price: +document.getElementById('tsPrice').value || 0,
     minStock: +document.getElementById('tsMinStock').value || 0,
-    dot: document.getElementById('tsDot').value.trim(),
-    date: document.getElementById('tsDate').value || null,
     notes: document.getElementById('tsNotes').value.trim()
   };
-  // Bestand leer beim Anlegen → Kaufmenge übernehmen
-  var stockField = document.getElementById('tsStock').value.trim();
-  if (stockField === '' && data.qty > 0) data.stock = data.qty;
   if (editingTyreStockId) {
-    Object.assign(state.tyreStock.find(function(x){return x.id===editingTyreStockId;}), data);
+    var ex = state.tyreStock.find(function(x){return x.id===editingTyreStockId;});
+    tyreEnsureBatches(ex);
+    Object.assign(ex, meta); // Chargen/Bestand bleiben unangetastet
   } else {
-    state.tyreStock.push({ id: uid(), ...data });
+    var qty = +document.getElementById('tsQty').value || 0;
+    var batches = [];
+    if (qty > 0) batches.push({
+      dot: document.getElementById('tsDot').value.trim(),
+      qty: qty,
+      price: +document.getElementById('tsPrice').value || 0,
+      date: document.getElementById('tsDate').value || null
+    });
+    state.tyreStock.push({ id: uid(), ...meta, batches: batches });
   }
   save(); closeTyreStockModal(); renderTyreStock(); showToast('✅ Reifen gespeichert');
 }
@@ -2018,10 +2053,12 @@ function openTyreRestock(id) {
   tyreRestockId = id;
   var t = state.tyreStock.find(function(x){return x.id===id;});
   if (!t) return;
+  var count = tyreStockCount(t);
   document.getElementById('tsRestockTitle').textContent = '🛒 ' + t.modell + ' nachkaufen';
-  document.getElementById('tsRestockInfo').innerHTML = 'Aktuell: <strong>'+(t.stock||0)+' Stk</strong> ('+t.position+')' + (t.price?' zu '+(+t.price).toLocaleString('de-DE',{minimumFractionDigits:2})+' €/Stk':'');
+  document.getElementById('tsRestockInfo').innerHTML = 'Aktuell: <strong>'+count+' Stk</strong> ('+t.position+')<br>Legt eine neue Charge mit eigener DOT an.';
   document.getElementById('tsRestockQty').value = '';
-  document.getElementById('tsRestockPrice').value = t.price || '';
+  var lastPrice = (t.batches && t.batches.length) ? (t.batches[t.batches.length-1].price||'') : '';
+  document.getElementById('tsRestockPrice').value = lastPrice;
   document.getElementById('tsRestockDot').value = '';
   document.getElementById('tyreRestockModal').classList.add('open');
 }
@@ -2029,15 +2066,16 @@ function closeTyreRestock() { document.getElementById('tyreRestockModal').classL
 function saveTyreRestock() {
   var t = state.tyreStock.find(function(x){return x.id===tyreRestockId;});
   if (!t) return;
+  tyreEnsureBatches(t);
   var addQty = +document.getElementById('tsRestockQty').value || 0;
   var addPrice = +document.getElementById('tsRestockPrice').value || 0;
   var dot = document.getElementById('tsRestockDot').value.trim();
   if (!addQty) { showToast('Menge angeben','error'); return; }
-  t.stock = (t.stock||0) + addQty;
-  t.qty = (t.qty||0) + addQty;
-  if (addPrice) t.price = addPrice; // aktueller Preis
-  if (dot) t.dot = dot;
-  save(); closeTyreRestock(); renderTyreStock(); showToast('🛒 +'+addQty+' Stk · Bestand: '+t.stock);
+  // Gleiche DOT+Preis → in bestehende Charge, sonst neue Charge
+  var match = t.batches.find(function(b){ return (b.dot||'')===dot && (b.price||0)===addPrice; });
+  if (match) { match.qty = (match.qty||0) + addQty; }
+  else { t.batches.push({ dot: dot, qty: addQty, price: addPrice, date: new Date().toISOString().split('T')[0] }); }
+  save(); closeTyreRestock(); renderTyreStock(); showToast('🛒 +'+addQty+' Stk · Bestand: '+tyreStockCount(t));
 }
 
 function renderInventory() {
@@ -2222,12 +2260,13 @@ function renderLogTyres() {
   var el = document.getElementById('logTyreList');
   if (!logTyres.length) { el.innerHTML='<div style="color:var(--text2);font-size:0.8rem;padding:8px 0">Kein Reifen ausgewählt</div>'; return; }
   var stock = state.tyreStock || [];
-  var opts = stock.map(function(t){ return '<option value="'+t.id+'">'+t.modell+' '+(t.groesse||'')+' ('+t.position+', '+(t.stock||0)+' Stk)</option>'; }).join('');
+  var opts = stock.map(function(t){ return '<option value="'+t.id+'">'+t.modell+' '+(t.groesse||'')+' ('+t.position+', '+tyreStockCount(t)+' Stk)</option>'; }).join('');
   var html = '';
   for (var i=0;i<logTyres.length;i++) {
     var m = logTyres[i];
     var t = stock.find(function(x){return x.id===m.tyreId;});
-    var cost = t ? (t.price||0)*(m.qty||0) : 0;
+    var cost = 0;
+    if (t) { tyreEnsureBatches(t); var rem=m.qty||0; for (var bi=0;bi<t.batches.length&&rem>0;bi++){ var take=Math.min(t.batches[bi].qty||0,rem); cost+=(t.batches[bi].price||0)*take; rem-=take; } }
     html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;background:var(--surface2);border-radius:8px;padding:10px">';
     html += '<div style="flex:1;min-width:0">';
     html += '<select onchange="logTyres['+i+'].tyreId=this.value;renderLogTyres()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:0.85rem;min-height:40px"><option value="">— Reifen wählen —</option>'+opts+'</select>';
@@ -3191,7 +3230,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v41';
+var APP_VERSION = 'v42';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
