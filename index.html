@@ -269,6 +269,9 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       </label>
     </div>
     <div class="form-group"><label>Notizen</label><textarea id="bNotes" placeholder="Sonderausstattung…"></textarea></div>
+    <div class="section-label" style="margin-top:8px">🛞 REIFEN-SETUPS</div>
+    <div id="bTyreSetups"></div>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="addTyreSetup()" style="width:100%;justify-content:center;margin-top:8px">+ Reifen-Setup</button>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeBikeModal()">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveBike()">💾 Speichern</button>
@@ -632,7 +635,8 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
         <select id="tdStatus"><option>Geplant</option><option>Gebucht</option><option>Erledigt</option><option>Storniert</option></select>
       </div>
     </div>
-    <div class="form-group"><label>Motorrad</label><select id="tdBike"><option value="">—</option></select></div>
+    <div class="form-group"><label>Motorrad</label><select id="tdBike" onchange="populateTdTyreSetups()"><option value="">—</option></select></div>
+    <div class="form-group"><label>🛞 Reifen-Setup</label><select id="tdTyreSetup"><option value="">—</option></select></div>
 
     <div class="section-label" style="margin-top:8px">SCHNELL-ANLAGE (mehrere Tage)</div>
     <div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px">
@@ -852,6 +856,7 @@ function renderBikes() {
         </div>
         ${getKmPerMonth(b) ? `<div style="font-size:0.75rem;color:var(--text2);margin-top:4px;display:flex;align-items:center;gap:8px"><span>~${getKmPerMonth(b)} km/Monat</span><button class="btn-icon" style="min-width:28px;min-height:28px;padding:2px;font-size:0.8rem" onclick="event.stopPropagation();openKmHistoryModal('${b.id}')" title="km-Verlauf anzeigen">📈</button></div>` : ''}
         ${(b.huDate || b.noHu) ? `<div style="margin-top:6px">${huBadge(b)}</div>` : ''}
+        ${(b.tyreSetups && b.tyreSetups.length) ? `<div style="font-size:0.75rem;color:var(--text2);margin-top:6px">🛞 ${b.tyreSetups.map(function(s){return s.name||s.type;}).join(', ')}</div>` : ''}
       </div>
       <div class="bike-card-actions">
         <button class="btn-icon" onclick="event.stopPropagation();openBikeModal('${b.id}')">✏️</button>
@@ -882,15 +887,68 @@ function openBikeModal(id) {
   document.getElementById('bHuLast').value = b?.huLast||'';
   document.getElementById('bNoHu').checked = b?.noHu||false;
   document.getElementById('bNotes').value = b?.notes||'';
+  bTyreSetupsEdit = b && b.tyreSetups ? JSON.parse(JSON.stringify(b.tyreSetups)) : [];
+  renderTyreSetups();
   toggleHuFields();
   document.getElementById('bikeModal').classList.add('open');
 }
 function closeBikeModal() { document.getElementById('bikeModal').classList.remove('open'); }
+
+// ── REIFEN-SETUPS ──
+var bTyreSetupsEdit = [];
+
+function renderTyreSetups() {
+  var el = document.getElementById('bTyreSetups');
+  if (!bTyreSetupsEdit.length) { el.innerHTML = '<div style="color:var(--text2);font-size:0.8rem;padding:4px 0">Noch keine Reifen-Setups</div>'; return; }
+  var html = '';
+  bTyreSetupsEdit.forEach(function(s, i) {
+    var isTrack = s.type === 'Rennstrecke';
+    html += '<div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:8px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><strong style="font-size:0.85rem">Setup '+(i+1)+'</strong><button class="btn-icon" style="min-width:28px;min-height:28px;padding:2px" onclick="removeTyreSetup('+i+')">✕</button></div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:8px"><label>Bezeichnung</label><input value="'+(s.name||'').replace(/"/g,'&quot;')+'" placeholder="z.B. Straße, Rennstrecke trocken" onchange="bTyreSetupsEdit['+i+'].name=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:8px"><label>Typ</label><select onchange="bTyreSetupsEdit['+i+'].type=this.value;renderTyreSetups()"><option'+(s.type==='Straße'?' selected':'')+'>Straße</option><option'+(isTrack?' selected':'')+'>Rennstrecke</option></select></div>';
+    html += '</div>';
+    // Front
+    html += '<div style="font-size:0.75rem;color:var(--text2);font-weight:700;margin:4px 0">VORNE</div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Modell</label><input value="'+(s.frontModel||'').replace(/"/g,'&quot;')+'" placeholder="Michelin Road 6" onchange="bTyreSetupsEdit['+i+'].frontModel=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Größe</label><input value="'+(s.frontSize||'').replace(/"/g,'&quot;')+'" placeholder="120/70 ZR17" onchange="bTyreSetupsEdit['+i+'].frontSize=this.value" /></div>';
+    html += '</div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Druck kalt (bar)</label><input type="number" inputmode="decimal" step="0.05" value="'+(s.frontCold||'')+'" onchange="bTyreSetupsEdit['+i+'].frontCold=this.value" /></div>';
+    if (isTrack) html += '<div class="form-group" style="margin-bottom:6px"><label>Druck warm (bar)</label><input type="number" inputmode="decimal" step="0.05" value="'+(s.frontWarm||'')+'" onchange="bTyreSetupsEdit['+i+'].frontWarm=this.value" /></div>';
+    else html += '<div class="form-group" style="margin-bottom:6px"></div>';
+    html += '</div>';
+    // Rear
+    html += '<div style="font-size:0.75rem;color:var(--text2);font-weight:700;margin:4px 0">HINTEN</div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Modell</label><input value="'+(s.rearModel||'').replace(/"/g,'&quot;')+'" placeholder="Michelin Road 6" onchange="bTyreSetupsEdit['+i+'].rearModel=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Größe</label><input value="'+(s.rearSize||'').replace(/"/g,'&quot;')+'" placeholder="190/55 ZR17" onchange="bTyreSetupsEdit['+i+'].rearSize=this.value" /></div>';
+    html += '</div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:0"><label>Druck kalt (bar)</label><input type="number" inputmode="decimal" step="0.05" value="'+(s.rearCold||'')+'" onchange="bTyreSetupsEdit['+i+'].rearCold=this.value" /></div>';
+    if (isTrack) html += '<div class="form-group" style="margin-bottom:0"><label>Druck warm (bar)</label><input type="number" inputmode="decimal" step="0.05" value="'+(s.rearWarm||'')+'" onchange="bTyreSetupsEdit['+i+'].rearWarm=this.value" /></div>';
+    else html += '<div class="form-group" style="margin-bottom:0"></div>';
+    html += '</div>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function addTyreSetup() {
+  bTyreSetupsEdit.push({ id:uid(), name:'', type:'Straße', frontModel:'', frontSize:'', frontCold:'', frontWarm:'', rearModel:'', rearSize:'', rearCold:'', rearWarm:'' });
+  renderTyreSetups();
+}
+function removeTyreSetup(i) {
+  bTyreSetupsEdit.splice(i,1);
+  renderTyreSetups();
+}
 function saveBike() {
   const make = document.getElementById('bMake').value.trim();
   const model = document.getElementById('bModel').value.trim();
   if (!make||!model) { showToast('Marke und Modell sind Pflichtfelder','error'); return; }
-  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', fin:document.getElementById('bFin').value.trim(), firstReg:document.getElementById('bFirstReg').value||null, huDate:document.getElementById('bHuDate').value||null, huLast:document.getElementById('bHuLast').value||null, noHu:document.getElementById('bNoHu').checked, notes:document.getElementById('bNotes').value.trim() };
+  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', fin:document.getElementById('bFin').value.trim(), firstReg:document.getElementById('bFirstReg').value||null, huDate:document.getElementById('bHuDate').value||null, huLast:document.getElementById('bHuLast').value||null, noHu:document.getElementById('bNoHu').checked, notes:document.getElementById('bNotes').value.trim(), tyreSetups:bTyreSetupsEdit.slice() };
   if (state.editingBikeId) {
     Object.assign(state.bikes.find(x=>x.id===state.editingBikeId), data);
   } else {
@@ -2031,9 +2089,29 @@ function openTrackdayModal(id) {
     sel.appendChild(opt);
   });
   if (td && td.bikeId) sel.value = td.bikeId;
+  populateTdTyreSetups();
+  if (td && td.tyreSetupId) document.getElementById('tdTyreSetup').value = td.tyreSetupId;
   document.getElementById('trackdayModal').classList.add('open');
 }
 function closeTrackdayModal() { document.getElementById('trackdayModal').classList.remove('open'); editingTrackdayId = null; }
+
+function populateTdTyreSetups() {
+  var bikeId = document.getElementById('tdBike').value;
+  var sel = document.getElementById('tdTyreSetup');
+  var prev = sel.value;
+  sel.innerHTML = '<option value="">—</option>';
+  var bike = state.bikes.find(function(b){return b.id===bikeId;});
+  if (bike && bike.tyreSetups) {
+    bike.tyreSetups.forEach(function(s){
+      var opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = (s.name||s.type) + (s.type ? ' ('+s.type+')' : '');
+      sel.appendChild(opt);
+    });
+  }
+  // keep previous if still valid
+  if (prev && sel.querySelector('option[value="'+prev+'"]')) sel.value = prev;
+}
 
 function saveTrackday() {
   var track = document.getElementById('tdTrack').value.trim();
@@ -2046,6 +2124,7 @@ function saveTrackday() {
     track: track, status: document.getElementById('tdStatus').value,
     organizer: document.getElementById('tdOrganizer').value.trim(),
     bikeId: document.getElementById('tdBike').value || null,
+    tyreSetupId: document.getElementById('tdTyreSetup').value || null,
     notes: document.getElementById('tdNotes').value.trim(),
     days: days
   };
