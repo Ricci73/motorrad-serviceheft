@@ -523,7 +523,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v36</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v37</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -701,6 +701,20 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeHelpModal()">Schließen</button></div>
+  </div>
+</div>
+
+<!-- ── MODAL: Trackday Details ── -->
+<div class="modal-overlay" id="trackdayDetailModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="tdDetailTitle">Trackday</div><button class="btn-icon" onclick="closeTrackdayDetail()">✕</button></div>
+    <div id="tdDetailContent"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTrackdayDetail()">Schließen</button>
+      <button class="btn btn-secondary" id="tdDetailChecklistBtn">📋 Checkliste</button>
+      <button class="btn btn-primary" id="tdDetailEditBtn">✏️</button>
+    </div>
   </div>
 </div>
 
@@ -2388,6 +2402,7 @@ function renderTdCard(td) {
       '</div>' +
     '</div>' +
     '<div class="maint-actions" style="flex-direction:column">' +
+      '<button class="btn-icon" title="Details" onclick="openTrackdayDetail(\'' + td.id + '\')">ℹ️</button>' +
       '<button class="btn-icon" title="Checkliste" onclick="openChecklistForTd(\'' + td.id + '\')">📋</button>' +
       '<button class="btn-icon" title="Bearbeiten" onclick="openTrackdayModal(\'' + td.id + '\')">✏️</button>' +
       '<button class="btn-icon" title="Löschen" onclick="deleteTrackday(\'' + td.id + '\')">🗑️</button>' +
@@ -2582,6 +2597,63 @@ function deleteTrackday(id) {
   state.trackdays = (state.trackdays||[]).filter(function(x){return x.id!==id;});
   save(); renderTrackdays(); showToast('🗑️ Gelöscht');
 }
+
+// ── TRACKDAY DETAILANSICHT (read-only) ──
+function openTrackdayDetail(id) {
+  var td = (state.trackdays||[]).find(function(x){return x.id===id;});
+  if (!td) return;
+  migrateTd(td);
+  var statusIcons = {Geplant:'📋',Gebucht:'✅',Erledigt:'🏁',Storniert:'❌'};
+  document.getElementById('tdDetailTitle').textContent = '🏁 ' + td.track;
+  var bike = td.bikeId ? state.bikes.find(function(b){return b.id===td.bikeId;}) : null;
+
+  var html = '';
+  var rows = [];
+  var addRow = function(label, val){ if(val||val===0) rows.push('<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.88rem"><span style="color:var(--text2)">'+label+'</span><span style="text-align:right;font-weight:600">'+val+'</span></div>'); };
+  addRow('Status', (statusIcons[td.status]||'')+' '+td.status);
+  addRow('Veranstalter', td.organizer);
+  addRow('Motorrad', bike ? bike.make+' '+bike.model : '');
+  // Tyre setups
+  var ids = td.tyreSetupIds || (td.tyreSetupId ? [td.tyreSetupId] : []);
+  if (ids.length && bike && bike.tyreSetups) {
+    var names = ids.map(function(x){ var s=bike.tyreSetups.find(function(y){return y.id===x;}); return s?(s.name||s.type):null; }).filter(Boolean);
+    if (names.length) addRow('Reifen-Setups', '🛞 '+names.join(', '));
+  }
+  addRow('Gesamtkosten', tdTotalCost(td) ? tdTotalCost(td).toLocaleString('de-DE',{minimumFractionDigits:2})+' €' : '');
+  if (td.notes) addRow('Notizen', td.notes);
+  html += '<div class="card" style="margin-bottom:12px">'+rows.join('')+'</div>';
+
+  // Days
+  html += '<div class="section-label">📅 TAGE</div>';
+  td.days.forEach(function(day, i){
+    var parts = [];
+    if (day.art) parts.push(day.art);
+    if (day.gruppe && day.gruppe!==day.art) parts.push(day.gruppe);
+    if (day.besteZeit) parts.push('🏁 '+day.besteZeit);
+    if (day.kosten) parts.push((+day.kosten).toLocaleString('de-DE',{minimumFractionDigits:2})+' €');
+    var dName = new Date(day.datum).toLocaleDateString('de-DE',{weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+    html += '<div class="maint-item" style="border-left-color:var(--accent)"><div class="maint-item-body">';
+    html += '<div class="maint-name">Tag '+(i+1)+' · '+dName+'</div>';
+    html += '<div class="maint-details">'+(parts.join(' · ')||'—')+'</div>';
+    html += '</div></div>';
+  });
+
+  // Checklist progress
+  var cl = td.checklist || [];
+  if (cl.length) {
+    var done = cl.filter(function(c){return c.done;}).length;
+    html += '<div class="section-label" style="margin-top:12px">📋 CHECKLISTE</div>';
+    html += '<div class="card"><div style="font-size:0.9rem">'+done+' / '+cl.length+' erledigt'+(done===cl.length?' ✅':'')+'</div>';
+    var pct = cl.length ? Math.round(done/cl.length*100) : 0;
+    html += '<div style="background:var(--surface2);border-radius:6px;height:8px;margin-top:8px;overflow:hidden"><div style="background:var(--accent);height:100%;width:'+pct+'%"></div></div></div>';
+  }
+
+  document.getElementById('tdDetailContent').innerHTML = html;
+  document.getElementById('tdDetailEditBtn').onclick = function(){ closeTrackdayDetail(); openTrackdayModal(id); };
+  document.getElementById('tdDetailChecklistBtn').onclick = function(){ closeTrackdayDetail(); openChecklistForTd(id); };
+  document.getElementById('trackdayDetailModal').classList.add('open');
+}
+function closeTrackdayDetail() { document.getElementById('trackdayDetailModal').classList.remove('open'); }
 
 function getMasterChecklist() {
   // Initialize master from DEFAULT_CHECKLIST on first use
@@ -2843,7 +2915,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v36';
+var APP_VERSION = 'v37';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
