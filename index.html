@@ -523,7 +523,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v37</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v38</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -2545,7 +2545,7 @@ function populateTdTyreSetups() {
   var el = document.getElementById('tdTyreSetups');
   var bike = state.bikes.find(function(b){return b.id===bikeId;});
   if (!bike || !bike.tyreSetups || !bike.tyreSetups.length) {
-    el.innerHTML = '<div style="color:var(--text2);font-size:0.8rem">Keine Setups für dieses Motorrad</div>';
+    el.innerHTML = '<div style="color:var(--text2);font-size:0.8rem;padding:4px">Kein Motorrad gewählt oder keine Reifen-Setups vorhanden</div>';
     return;
   }
   // Drop selections that no longer exist on this bike
@@ -2553,17 +2553,28 @@ function populateTdTyreSetups() {
   tdSelectedSetups = tdSelectedSetups.filter(function(id){ return validIds.indexOf(id)!==-1; });
   el.innerHTML = bike.tyreSetups.map(function(s){
     var checked = tdSelectedSetups.indexOf(s.id)!==-1;
-    var label = (s.name||s.type) + (s.type ? ' ('+s.type+')' : '');
-    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 2px;min-height:38px;cursor:pointer">' +
-      '<input type="checkbox" ' + (checked?'checked':'') + ' onchange="toggleTdSetup(\''+s.id+'\',this.checked)" style="width:18px;height:18px;accent-color:var(--accent)" />' +
-      '<span style="font-size:0.88rem">'+label+'</span></label>';
+    var isTrack = s.type === 'Rennstrecke';
+    var pf = function(cold, warm){ return isTrack ? ((cold||'?')+'/'+(warm||'?')+' bar') : ((cold||'?')+' bar'); };
+    var typeIcon = isTrack ? '🏁' : '🛣️';
+    var detail = 'V: '+(s.frontModel||'—')+' '+(s.frontSize||'')+' · '+pf(s.frontCold,s.frontWarm) +
+                 '<br>H: '+(s.rearModel||'—')+' '+(s.rearSize||'')+' · '+pf(s.rearCold,s.rearWarm);
+    var border = checked ? 'var(--accent)' : 'var(--border)';
+    var bg = checked ? 'rgba(232,93,4,0.12)' : 'var(--surface)';
+    var check = checked ? '<span style="color:var(--accent);font-size:1.1rem">✓</span>' : '<span style="color:var(--text2);font-size:1.1rem">○</span>';
+    return '<div onclick="toggleTdSetup(\''+s.id+'\')" style="border:2px solid '+border+';background:'+bg+';border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;display:flex;gap:10px;align-items:flex-start">' +
+      '<div style="margin-top:2px">'+check+'</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-weight:600;font-size:0.9rem">'+typeIcon+' '+(s.name||s.type)+'</div>' +
+        '<div style="font-size:0.78rem;color:var(--text2);margin-top:3px">'+detail+'</div>' +
+      '</div></div>';
   }).join('');
 }
 
-function toggleTdSetup(id, on) {
+function toggleTdSetup(id) {
   var i = tdSelectedSetups.indexOf(id);
-  if (on && i===-1) tdSelectedSetups.push(id);
-  if (!on && i!==-1) tdSelectedSetups.splice(i,1);
+  if (i===-1) tdSelectedSetups.push(id);
+  else tdSelectedSetups.splice(i,1);
+  populateTdTyreSetups();
 }
 
 function saveTrackday() {
@@ -2919,7 +2930,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v37';
+var APP_VERSION = 'v38';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
