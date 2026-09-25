@@ -47,7 +47,7 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - **⚡ Schnellbackup** — 1 Tap sichert alle Daten als JSON
 - **Backup-Erinnerung** — Hinweis wenn letztes Backup > 7 Tage her
 - JSON-Backup, CSV-Export, PDF-Export, Kalender (.ics)
-- Import mit Ersetzen- oder Merge-Modus
+- Import mit Ersetzen- oder Merge-Modus (Merge fügt neue Motorräder, Trackdays und Material hinzu)
 
 ---
 
