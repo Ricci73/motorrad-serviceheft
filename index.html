@@ -528,7 +528,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v40</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v41</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -642,6 +642,24 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 </div>
 
 <!-- ── MODAL: Reifen-Vorrat Eintrag ── -->
+<!-- ── MODAL: Reifen Nachkauf ── -->
+<div class="modal-overlay" id="tyreRestockModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="tsRestockTitle">🛒 Reifen nachkaufen</div><button class="btn-icon" onclick="closeTyreRestock()">✕</button></div>
+    <div id="tsRestockInfo" style="font-size:0.85rem;color:var(--text2);margin-bottom:12px"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Menge (Stück)</label><input id="tsRestockQty" type="number" inputmode="numeric" placeholder="2" /></div>
+      <div class="form-group"><label>Preis/Stück (€)</label><input id="tsRestockPrice" type="number" inputmode="decimal" step="0.01" /></div>
+    </div>
+    <div class="form-group"><label>DOT (optional, aktualisiert)</label><input id="tsRestockDot" placeholder="z.B. 2624" /></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTyreRestock()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveTyreRestock()">🛒 Nachkaufen</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="tyreStockModal">
   <div class="modal" style="max-width:460px">
     <div class="modal-handle"></div>
@@ -1917,6 +1935,7 @@ function renderTyreStock() {
         '</div>' +
       '</div>' +
       '<div class="maint-actions" style="justify-content:flex-end;gap:4px;margin-top:8px;border-top:1px solid var(--border);padding-top:8px">' +
+        '<button class="btn-icon" title="Nachkaufen" onclick="openTyreRestock(\''+t.id+'\')">🛒</button>' +
         '<button class="btn-icon" title="Bearbeiten" onclick="openTyreStockModal(\''+t.id+'\')">✏️</button>' +
         '<button class="btn-icon" title="Löschen" onclick="deleteTyreStock(\''+t.id+'\')">🗑️</button>' +
       '</div>' +
@@ -1991,6 +2010,34 @@ function deleteTyreStock(id) {
   if (!confirm('Reifen aus Vorrat löschen?')) return;
   state.tyreStock = state.tyreStock.filter(function(x){return x.id!==id;});
   save(); renderTyreStock(); showToast('🗑️ Gelöscht');
+}
+
+// ── REIFEN NACHKAUF ──
+var tyreRestockId = null;
+function openTyreRestock(id) {
+  tyreRestockId = id;
+  var t = state.tyreStock.find(function(x){return x.id===id;});
+  if (!t) return;
+  document.getElementById('tsRestockTitle').textContent = '🛒 ' + t.modell + ' nachkaufen';
+  document.getElementById('tsRestockInfo').innerHTML = 'Aktuell: <strong>'+(t.stock||0)+' Stk</strong> ('+t.position+')' + (t.price?' zu '+(+t.price).toLocaleString('de-DE',{minimumFractionDigits:2})+' €/Stk':'');
+  document.getElementById('tsRestockQty').value = '';
+  document.getElementById('tsRestockPrice').value = t.price || '';
+  document.getElementById('tsRestockDot').value = '';
+  document.getElementById('tyreRestockModal').classList.add('open');
+}
+function closeTyreRestock() { document.getElementById('tyreRestockModal').classList.remove('open'); tyreRestockId=null; }
+function saveTyreRestock() {
+  var t = state.tyreStock.find(function(x){return x.id===tyreRestockId;});
+  if (!t) return;
+  var addQty = +document.getElementById('tsRestockQty').value || 0;
+  var addPrice = +document.getElementById('tsRestockPrice').value || 0;
+  var dot = document.getElementById('tsRestockDot').value.trim();
+  if (!addQty) { showToast('Menge angeben','error'); return; }
+  t.stock = (t.stock||0) + addQty;
+  t.qty = (t.qty||0) + addQty;
+  if (addPrice) t.price = addPrice; // aktueller Preis
+  if (dot) t.dot = dot;
+  save(); closeTyreRestock(); renderTyreStock(); showToast('🛒 +'+addQty+' Stk · Bestand: '+t.stock);
 }
 
 function renderInventory() {
@@ -3144,7 +3191,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v40';
+var APP_VERSION = 'v41';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
