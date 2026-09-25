@@ -236,6 +236,70 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 </head>
 <body>
 <div id="toast"></div>
+<datalist id="tyreModelList"></datalist>
+<datalist id="tyreSizeList"></datalist>
+
+<!-- ── MODAL: Reifen-Übersicht ── -->
+<div class="modal-overlay" id="tyreOverviewModal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title">🛞 Reifen-Setups Übersicht</div><button class="btn-icon" onclick="closeTyreOverview()">✕</button></div>
+    <div id="tyreOverviewContent" style="overflow-x:auto"></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeTyreOverview()">Schließen</button></div>
+  </div>
+</div>
+
+<!-- ── MODAL: Reifentabelle ── -->
+<div class="modal-overlay" id="tyreTableModal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title">📋 Reifentabelle</div><button class="btn-icon" onclick="closeTyreTable()">✕</button></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn btn-primary btn-sm" onclick="openTyreEntry()">+ Reifen</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportTyreTable()">💾 Export</button>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('tyreImportInput').click()">📂 Import</button>
+      <input type="file" id="tyreImportInput" accept=".json,application/json" style="display:none" onchange="importTyreTable(event)" />
+    </div>
+    <div id="tyreTableContent" style="overflow-x:auto"></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeTyreTable()">Schließen</button></div>
+  </div>
+</div>
+
+<!-- ── MODAL: Reifen bearbeiten ── -->
+<div class="modal-overlay" id="tyreEntryModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="tyreEntryTitle">Reifen hinzufügen</div><button class="btn-icon" onclick="closeTyreEntry()">✕</button></div>
+    <div class="form-group"><label>Hersteller</label><input id="teHersteller" placeholder="z.B. Pirelli" /></div>
+    <div class="form-row">
+      <div class="form-group"><label>Modell *</label><input id="teModell" placeholder="Diablo Supercorsa V3" /></div>
+      <div class="form-group"><label>Größe</label><input id="teGroesse" placeholder="120/70 ZR17" /></div>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.9rem;min-height:40px">
+        <input type="checkbox" id="teStreet" style="width:18px;height:18px;accent-color:var(--accent)" onchange="toggleTyreEntryFields()" /> 🛣️ Für Straße
+      </label>
+      <div id="teStreetFields" style="display:none;padding-left:26px">
+        <div class="form-group" style="margin-bottom:6px"><label>Druck kalt (bar)</label><input id="teStreetCold" type="number" inputmode="decimal" step="0.05" /></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.9rem;min-height:40px">
+        <input type="checkbox" id="teTrack" style="width:18px;height:18px;accent-color:var(--accent)" onchange="toggleTyreEntryFields()" /> 🏁 Für Rennstrecke
+      </label>
+      <div id="teTrackFields" style="display:none;padding-left:26px">
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:6px"><label>Druck kalt (bar)</label><input id="teTrackCold" type="number" inputmode="decimal" step="0.05" /></div>
+          <div class="form-group" style="margin-bottom:6px"><label>Druck warm (bar)</label><input id="teTrackWarm" type="number" inputmode="decimal" step="0.05" /></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTyreEntry()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveTyreEntry()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── MODAL: Motorrad ── -->
 <div class="modal-overlay" id="bikeModal">
@@ -269,6 +333,9 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       </label>
     </div>
     <div class="form-group"><label>Notizen</label><textarea id="bNotes" placeholder="Sonderausstattung…"></textarea></div>
+    <div class="section-label" style="margin-top:8px">🛞 REIFEN-SETUPS</div>
+    <div id="bTyreSetups"></div>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="addTyreSetup()" style="width:100%;justify-content:center;margin-top:8px">+ Reifen-Setup</button>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeBikeModal()">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveBike()">💾 Speichern</button>
@@ -443,7 +510,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v32</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v34</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -463,6 +530,10 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
   <div class="page active" id="page-bikes">
     <div class="page-header">
       <div class="page-title">Meine Motorräder</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="openTyreOverview()">🛞 Setups</button>
+        <button class="btn btn-secondary btn-sm" onclick="openTyreTable()">📋 Reifentabelle</button>
+      </div>
     </div>
     <div class="bike-list" id="bikeGrid"></div>
   </div>
@@ -632,7 +703,8 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
         <select id="tdStatus"><option>Geplant</option><option>Gebucht</option><option>Erledigt</option><option>Storniert</option></select>
       </div>
     </div>
-    <div class="form-group"><label>Motorrad</label><select id="tdBike"><option value="">—</option></select></div>
+    <div class="form-group"><label>Motorrad</label><select id="tdBike" onchange="populateTdTyreSetups()"><option value="">—</option></select></div>
+    <div class="form-group"><label>🛞 Reifen-Setups</label><div id="tdTyreSetups" style="background:var(--surface2);border-radius:8px;padding:8px"></div></div>
 
     <div class="section-label" style="margin-top:8px">SCHNELL-ANLAGE (mehrere Tage)</div>
     <div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px">
@@ -725,12 +797,12 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <script>
 // ── DATA ──
-let state = { bikes:[], maintenance:{}, logs:{}, inventory:[], trackdays:[], masterChecklist:null, selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
+let state = { bikes:[], maintenance:{}, logs:{}, inventory:[], trackdays:[], masterChecklist:null, tyreTable:null, selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
 
 function save() {
   // Dual-write: IndexedDB (primary) + localStorage (fallback)
   dbSave();
-  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist })); } catch(e) {}
+  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist, tyreTable:state.tyreTable, tyreTable:state.tyreTable })); } catch(e) {}
 }
 
 // ── IndexedDB ──
@@ -755,7 +827,7 @@ function dbSave() {
   dbOpen().then(db => {
     const tx = db.transaction('appdata', 'readwrite');
     const store = tx.objectStore('appdata');
-    store.put({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist }, 'state');
+    store.put({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist, tyreTable:state.tyreTable, tyreTable:state.tyreTable }, 'state');
   }).catch(()=>{});
 }
 
@@ -776,7 +848,7 @@ async function load() {
   try {
     let data = await dbLoad();
     if (data && data.bikes && data.bikes.length) {
-      state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[]; state.trackdays = data.trackdays||[]; state.masterChecklist = data.masterChecklist||null;
+      state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[]; state.trackdays = data.trackdays||[]; state.masterChecklist = data.masterChecklist||null; state.tyreTable = data.tyreTable||null;
       state.selectedBike = state.bikes[0]?.id || null;
       return;
     }
@@ -786,7 +858,7 @@ async function load() {
     const d = localStorage.getItem('moto_serviceheft');
     if (d) {
       const p = JSON.parse(d);
-      state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[]; state.trackdays = p.trackdays||[]; state.masterChecklist = p.masterChecklist||null;
+      state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[]; state.trackdays = p.trackdays||[]; state.masterChecklist = p.masterChecklist||null; state.tyreTable = p.tyreTable||null;
       dbSave(); // migrate to IndexedDB
     }
   } catch(e) {}
@@ -852,6 +924,7 @@ function renderBikes() {
         </div>
         ${getKmPerMonth(b) ? `<div style="font-size:0.75rem;color:var(--text2);margin-top:4px;display:flex;align-items:center;gap:8px"><span>~${getKmPerMonth(b)} km/Monat</span><button class="btn-icon" style="min-width:28px;min-height:28px;padding:2px;font-size:0.8rem" onclick="event.stopPropagation();openKmHistoryModal('${b.id}')" title="km-Verlauf anzeigen">📈</button></div>` : ''}
         ${(b.huDate || b.noHu) ? `<div style="margin-top:6px">${huBadge(b)}</div>` : ''}
+        ${(b.tyreSetups && b.tyreSetups.length) ? `<div style="font-size:0.75rem;color:var(--text2);margin-top:6px">🛞 ${b.tyreSetups.map(function(s){return s.name||s.type;}).join(', ')}</div>` : ''}
       </div>
       <div class="bike-card-actions">
         <button class="btn-icon" onclick="event.stopPropagation();openBikeModal('${b.id}')">✏️</button>
@@ -882,15 +955,283 @@ function openBikeModal(id) {
   document.getElementById('bHuLast').value = b?.huLast||'';
   document.getElementById('bNoHu').checked = b?.noHu||false;
   document.getElementById('bNotes').value = b?.notes||'';
+  bTyreSetupsEdit = b && b.tyreSetups ? JSON.parse(JSON.stringify(b.tyreSetups)) : [];
+  populateTyreDatalists();
+  renderTyreSetups();
   toggleHuFields();
   document.getElementById('bikeModal').classList.add('open');
 }
 function closeBikeModal() { document.getElementById('bikeModal').classList.remove('open'); }
+
+// ── REIFEN-SETUPS ──
+var bTyreSetupsEdit = [];
+
+function populateTyreDatalists() {
+  var models = [], sizes = [];
+  state.bikes.forEach(function(b){
+    (b.tyreSetups||[]).forEach(function(s){
+      [s.frontModel, s.rearModel].forEach(function(m){ if(m && models.indexOf(m)===-1) models.push(m); });
+      [s.frontSize, s.rearSize].forEach(function(z){ if(z && sizes.indexOf(z)===-1) sizes.push(z); });
+    });
+  });
+  models.sort(); sizes.sort();
+  document.getElementById('tyreModelList').innerHTML = models.map(function(v){ return '<option value="'+v.replace(/"/g,'&quot;')+'"></option>'; }).join('');
+  document.getElementById('tyreSizeList').innerHTML = sizes.map(function(v){ return '<option value="'+v.replace(/"/g,'&quot;')+'"></option>'; }).join('');
+}
+
+function renderTyreSetups() {
+  var el = document.getElementById('bTyreSetups');
+  if (!bTyreSetupsEdit.length) { el.innerHTML = '<div style="color:var(--text2);font-size:0.8rem;padding:4px 0">Noch keine Reifen-Setups</div>'; return; }
+  var html = '';
+  bTyreSetupsEdit.forEach(function(s, i) {
+    var isTrack = s.type === 'Rennstrecke';
+    html += '<div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:8px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><strong style="font-size:0.85rem">Setup '+(i+1)+'</strong><button class="btn-icon" style="min-width:28px;min-height:28px;padding:2px" onclick="removeTyreSetup('+i+')">✕</button></div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:8px"><label>Bezeichnung</label><input value="'+(s.name||'').replace(/"/g,'&quot;')+'" placeholder="z.B. Straße, Rennstrecke trocken" onchange="bTyreSetupsEdit['+i+'].name=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:8px"><label>Typ</label><select onchange="bTyreSetupsEdit['+i+'].type=this.value;renderTyreSetups()"><option'+(s.type==='Straße'?' selected':'')+'>Straße</option><option'+(isTrack?' selected':'')+'>Rennstrecke</option></select></div>';
+    html += '</div>';
+    // Front
+    html += '<div style="font-size:0.75rem;color:var(--text2);font-weight:700;margin:4px 0">VORNE</div>';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>📋 Aus Reifentabelle</label><select onchange="applyTyreFromTable('+i+',\'front\',this.value);this.selectedIndex=0">'+tyreTableOptions(isTrack?'track':'street')+'</select></div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Modell</label><input list="tyreModelList" autocomplete="off" value="'+(s.frontModel||'').replace(/"/g,'&quot;')+'" placeholder="Michelin Road 6" onchange="bTyreSetupsEdit['+i+'].frontModel=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Größe</label><input list="tyreSizeList" autocomplete="off" value="'+(s.frontSize||'').replace(/"/g,'&quot;')+'" placeholder="120/70 ZR17" onchange="bTyreSetupsEdit['+i+'].frontSize=this.value" /></div>';
+    html += '</div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Druck kalt (bar)</label><input type="number" inputmode="decimal" step="0.05" value="'+(s.frontCold||'')+'" onchange="bTyreSetupsEdit['+i+'].frontCold=this.value" /></div>';
+    if (isTrack) html += '<div class="form-group" style="margin-bottom:6px"><label>Druck warm (bar)</label><input type="number" inputmode="decimal" step="0.05" value="'+(s.frontWarm||'')+'" onchange="bTyreSetupsEdit['+i+'].frontWarm=this.value" /></div>';
+    else html += '<div class="form-group" style="margin-bottom:6px"></div>';
+    html += '</div>';
+    // Rear
+    html += '<div style="font-size:0.75rem;color:var(--text2);font-weight:700;margin:4px 0">HINTEN</div>';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>📋 Aus Reifentabelle</label><select onchange="applyTyreFromTable('+i+',\'rear\',this.value);this.selectedIndex=0">'+tyreTableOptions(isTrack?'track':'street')+'</select></div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Modell</label><input list="tyreModelList" autocomplete="off" value="'+(s.rearModel||'').replace(/"/g,'&quot;')+'" placeholder="Michelin Road 6" onchange="bTyreSetupsEdit['+i+'].rearModel=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Größe</label><input list="tyreSizeList" autocomplete="off" value="'+(s.rearSize||'').replace(/"/g,'&quot;')+'" placeholder="190/55 ZR17" onchange="bTyreSetupsEdit['+i+'].rearSize=this.value" /></div>';
+    html += '</div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group" style="margin-bottom:0"><label>Druck kalt (bar)</label><input type="number" inputmode="decimal" step="0.05" value="'+(s.rearCold||'')+'" onchange="bTyreSetupsEdit['+i+'].rearCold=this.value" /></div>';
+    if (isTrack) html += '<div class="form-group" style="margin-bottom:0"><label>Druck warm (bar)</label><input type="number" inputmode="decimal" step="0.05" value="'+(s.rearWarm||'')+'" onchange="bTyreSetupsEdit['+i+'].rearWarm=this.value" /></div>';
+    else html += '<div class="form-group" style="margin-bottom:0"></div>';
+    html += '</div>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function getTyreTable() {
+  if (!state.tyreTable) {
+    // Seed from the reference table: slicks default to Rennstrecke only
+    state.tyreTable = TYRE_TABLE_SEED.map(function(t){
+      return {
+        id: uid(),
+        hersteller: t.h, modell: t.m, groesse: t.g,
+        street: false, streetCold: '',
+        track: true, trackCold: t.k, trackWarm: t.w
+      };
+    });
+  }
+  return state.tyreTable;
+}
+
+// Options for a setup dropdown, filtered by usage ('street' or 'track')
+function tyreTableOptions(usage) {
+  var opts = '<option value="">— Reifen wählen —</option>';
+  getTyreTable().forEach(function(t) {
+    if (usage === 'track' && !t.track) return;
+    if (usage === 'street' && !t.street) return;
+    var press = usage === 'track'
+      ? (t.trackCold||'?') + '/' + (t.trackWarm||'?') + ' bar'
+      : (t.streetCold||'?') + ' bar';
+    opts += '<option value="'+t.id+'">'+t.hersteller+' '+t.modell+' '+t.groesse+' ('+press+')</option>';
+  });
+  return opts;
+}
+
+// Apply a tyre-table entry to a setup's front/rear, using the setup's type
+function applyTyreFromTable(setupIdx, pos, tyreId) {
+  if (!tyreId) return;
+  var t = getTyreTable().find(function(x){return x.id===tyreId;});
+  if (!t) return;
+  var s = bTyreSetupsEdit[setupIdx];
+  var isTrack = s.type === 'Rennstrecke';
+  var label = t.hersteller + ' ' + t.modell;
+  var cold = isTrack ? t.trackCold : t.streetCold;
+  var warm = isTrack ? t.trackWarm : '';
+  if (pos === 'front') {
+    s.frontModel = label; s.frontSize = t.groesse; s.frontCold = cold; s.frontWarm = warm;
+  } else {
+    s.rearModel = label; s.rearSize = t.groesse; s.rearCold = cold; s.rearWarm = warm;
+  }
+  renderTyreSetups();
+}
+
+function addTyreSetup() {
+  bTyreSetupsEdit.push({ id:uid(), name:'', type:'Straße', frontModel:'', frontSize:'', frontCold:'', frontWarm:'', rearModel:'', rearSize:'', rearCold:'', rearWarm:'' });
+  renderTyreSetups();
+}
+function removeTyreSetup(i) {
+  bTyreSetupsEdit.splice(i,1);
+  renderTyreSetups();
+}
+
+// ── REIFEN-ÜBERSICHT ──
+function openTyreOverview() {
+  var rows = [];
+  state.bikes.forEach(function(b){
+    (b.tyreSetups||[]).forEach(function(s){
+      rows.push({ bike: b.make+' '+b.model, s: s });
+    });
+  });
+  var el = document.getElementById('tyreOverviewContent');
+  if (!rows.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">🛞</div><p>Noch keine Reifen-Setups angelegt.</p><p style="font-size:0.8rem">Lege sie beim Bearbeiten eines Motorrads an.</p></div>';
+  } else {
+    var pd = function(cold, warm, isTrack) {
+      var c = cold ? (cold+' bar') : '—';
+      if (isTrack && warm) return c + ' / ' + warm + ' bar';
+      return c;
+    };
+    var html = '<table class="maintenance-table" style="font-size:0.8rem"><thead><tr>' +
+      '<th>Motorrad</th><th>Setup</th><th>Reifen V/H</th><th>Größe V/H</th><th>Druck V<br><span style="font-weight:400">kalt/warm</span></th><th>Druck H<br><span style="font-weight:400">kalt/warm</span></th>' +
+      '</tr></thead><tbody>';
+    rows.forEach(function(r){
+      var s = r.s;
+      var isTrack = s.type === 'Rennstrecke';
+      var typeBadge = isTrack ? '🏁' : '🛣️';
+      html += '<tr>' +
+        '<td>'+r.bike+'</td>' +
+        '<td>'+typeBadge+' '+(s.name||s.type||'')+'</td>' +
+        '<td>'+(s.frontModel||'—')+'<br>'+(s.rearModel||'—')+'</td>' +
+        '<td>'+(s.frontSize||'—')+'<br>'+(s.rearSize||'—')+'</td>' +
+        '<td>'+pd(s.frontCold, s.frontWarm, isTrack)+'</td>' +
+        '<td>'+pd(s.rearCold, s.rearWarm, isTrack)+'</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+  document.getElementById('tyreOverviewModal').classList.add('open');
+}
+function closeTyreOverview() { document.getElementById('tyreOverviewModal').classList.remove('open'); }
+
+// ── REIFENTABELLE (editierbar) ──
+var editingTyreId = null;
+
+function openTyreTable() {
+  renderTyreTable();
+  document.getElementById('tyreTableModal').classList.add('open');
+}
+function closeTyreTable() { document.getElementById('tyreTableModal').classList.remove('open'); }
+
+function renderTyreTable() {
+  var table = getTyreTable();
+  var el = document.getElementById('tyreTableContent');
+  if (!table.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>Keine Reifen in der Tabelle.</p></div>';
+    return;
+  }
+  var html = '<table class="maintenance-table" style="font-size:0.8rem"><thead><tr>' +
+    '<th>Reifen</th><th>Größe</th><th>🛣️ Straße<br><span style="font-weight:400">kalt</span></th><th>🏁 Rennstr.<br><span style="font-weight:400">kalt/warm</span></th><th></th>' +
+    '</tr></thead><tbody>';
+  table.forEach(function(t) {
+    var streetStr = t.street ? ((t.streetCold||'?') + ' bar') : '—';
+    var trackStr = t.track ? ((t.trackCold||'?') + '/' + (t.trackWarm||'?') + ' bar') : '—';
+    html += '<tr>' +
+      '<td>'+t.hersteller+' '+t.modell+'</td>' +
+      '<td>'+(t.groesse||'—')+'</td>' +
+      '<td>'+streetStr+'</td>' +
+      '<td>'+trackStr+'</td>' +
+      '<td style="white-space:nowrap"><button class="btn-icon" style="min-width:32px;min-height:32px;padding:4px" onclick="openTyreEntry(\''+t.id+'\')">✏️</button><button class="btn-icon" style="min-width:32px;min-height:32px;padding:4px" onclick="deleteTyreEntry(\''+t.id+'\')">🗑️</button></td>' +
+    '</tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function toggleTyreEntryFields() {
+  document.getElementById('teStreetFields').style.display = document.getElementById('teStreet').checked ? 'block' : 'none';
+  document.getElementById('teTrackFields').style.display = document.getElementById('teTrack').checked ? 'block' : 'none';
+}
+
+function openTyreEntry(id) {
+  editingTyreId = id || null;
+  var t = id ? getTyreTable().find(function(x){return x.id===id;}) : null;
+  document.getElementById('tyreEntryTitle').textContent = id ? 'Reifen bearbeiten' : 'Reifen hinzufügen';
+  document.getElementById('teHersteller').value = t?t.hersteller:'';
+  document.getElementById('teModell').value = t?t.modell:'';
+  document.getElementById('teGroesse').value = t?t.groesse:'';
+  document.getElementById('teStreet').checked = t?!!t.street:false;
+  document.getElementById('teStreetCold').value = t?(t.streetCold||''):'';
+  document.getElementById('teTrack').checked = t?!!t.track:true;
+  document.getElementById('teTrackCold').value = t?(t.trackCold||''):'';
+  document.getElementById('teTrackWarm').value = t?(t.trackWarm||''):'';
+  toggleTyreEntryFields();
+  document.getElementById('tyreEntryModal').classList.add('open');
+}
+function closeTyreEntry() { document.getElementById('tyreEntryModal').classList.remove('open'); editingTyreId=null; }
+
+function saveTyreEntry() {
+  var modell = document.getElementById('teModell').value.trim();
+  if (!modell) { showToast('Modell ist Pflicht','error'); return; }
+  var street = document.getElementById('teStreet').checked;
+  var track = document.getElementById('teTrack').checked;
+  if (!street && !track) { showToast('Mindestens Straße oder Rennstrecke wählen','error'); return; }
+  var data = {
+    hersteller: document.getElementById('teHersteller').value.trim(),
+    modell: modell,
+    groesse: document.getElementById('teGroesse').value.trim(),
+    street: street, streetCold: document.getElementById('teStreetCold').value.trim(),
+    track: track, trackCold: document.getElementById('teTrackCold').value.trim(), trackWarm: document.getElementById('teTrackWarm').value.trim()
+  };
+  var table = getTyreTable();
+  if (editingTyreId) {
+    Object.assign(table.find(function(x){return x.id===editingTyreId;}), data);
+  } else {
+    table.push({ id: uid(), ...data });
+  }
+  save(); closeTyreEntry(); renderTyreTable(); showToast('✅ Reifen gespeichert');
+}
+
+function deleteTyreEntry(id) {
+  if (!confirm('Reifen aus Tabelle löschen?')) return;
+  state.tyreTable = getTyreTable().filter(function(x){return x.id!==id;});
+  save(); renderTyreTable(); showToast('🗑️ Gelöscht');
+}
+
+function exportTyreTable() {
+  var data = { version:1, exportedAt:new Date().toISOString(), tyreTable: getTyreTable() };
+  var blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bikerdesk-reifentabelle-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+  showToast('💾 Reifentabelle exportiert');
+}
+
+function importTyreTable(event) {
+  var file = event.target.files[0]; if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      var arr = data.tyreTable || (Array.isArray(data) ? data : null);
+      if (!arr || !Array.isArray(arr)) { showToast('Ungültige Datei','error'); return; }
+      // ensure ids
+      arr.forEach(function(t){ if(!t.id) t.id = uid(); });
+      state.tyreTable = arr;
+      save(); renderTyreTable(); showToast('✅ '+arr.length+' Reifen importiert');
+    } catch(err) { showToast('Fehler: '+err.message,'error'); }
+  };
+  reader.readAsText(file); event.target.value='';
+}
+
 function saveBike() {
   const make = document.getElementById('bMake').value.trim();
   const model = document.getElementById('bModel').value.trim();
   if (!make||!model) { showToast('Marke und Modell sind Pflichtfelder','error'); return; }
-  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', fin:document.getElementById('bFin').value.trim(), firstReg:document.getElementById('bFirstReg').value||null, huDate:document.getElementById('bHuDate').value||null, huLast:document.getElementById('bHuLast').value||null, noHu:document.getElementById('bNoHu').checked, notes:document.getElementById('bNotes').value.trim() };
+  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', fin:document.getElementById('bFin').value.trim(), firstReg:document.getElementById('bFirstReg').value||null, huDate:document.getElementById('bHuDate').value||null, huLast:document.getElementById('bHuLast').value||null, noHu:document.getElementById('bNoHu').checked, notes:document.getElementById('bNotes').value.trim(), tyreSetups:bTyreSetupsEdit.slice() };
   if (state.editingBikeId) {
     Object.assign(state.bikes.find(x=>x.id===state.editingBikeId), data);
   } else {
@@ -1152,7 +1493,7 @@ function openPhoto(src) { document.getElementById('photoModalImg').src=src; docu
 function openDataModal() { document.getElementById('dataModal').classList.add('open'); }
 function closeDataModal() { document.getElementById('dataModal').classList.remove('open'); }
 function exportJSON() {
-  const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs,inventory:state.inventory,trackdays:state.trackdays,masterChecklist:state.masterChecklist};
+  const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs,inventory:state.inventory,trackdays:state.trackdays,masterChecklist:state.masterChecklist,tyreTable:state.tyreTable};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=`motorrad-backup-${new Date().toISOString().split('T')[0]}.json`;
@@ -1201,6 +1542,7 @@ function importJSON(event) {
         }
         // Merge master checklist only if we don't have one yet
         if (data.masterChecklist && !state.masterChecklist) state.masterChecklist = data.masterChecklist;
+        if (data.tyreTable && !state.tyreTable) state.tyreTable = data.tyreTable;
         if (!state.selectedBike&&state.bikes.length) state.selectedBike=state.bikes[0].id;
         var msgParts=[];
         if(added) msgParts.push(added+' Motorrad/Motorräder');
@@ -1754,7 +2096,7 @@ function quickBackup() {
   var data = {
     version: 1, exportedAt: new Date().toISOString(),
     bikes: state.bikes, maintenance: state.maintenance, logs: state.logs,
-    inventory: state.inventory, trackdays: state.trackdays, masterChecklist: state.masterChecklist
+    inventory: state.inventory, trackdays: state.trackdays, masterChecklist: state.masterChecklist, tyreTable: state.tyreTable
   };
   var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
   var a = document.createElement('a');
@@ -1799,6 +2141,48 @@ function openHelpModal() { document.getElementById('helpModal').classList.add('o
 function closeHelpModal() { document.getElementById('helpModal').classList.remove('open'); }
 
 // ── TRACKDAYS ──
+// Reifentabelle Startdaten (Slicks → nur Rennstrecke mit kalt/warm)
+var TYRE_TABLE_SEED = [
+  {h:'Bridgestone', m:'Battlax Slick V01', g:'120/600 R17', k:'1.9', w:'2.1'},
+  {h:'Bridgestone', m:'Battlax Slick V01', g:'190/650 R17', k:'1.5', w:'1.7'},
+  {h:'Bridgestone', m:'Battlax Slick V02 VM', g:'120/600 R17', k:'2.0', w:'2.3'},
+  {h:'Bridgestone', m:'Battlax Slick V02', g:'200/655 R17', k:'1.4', w:'1.6'},
+  {h:'Bridgestone', m:'Battlax Slick V02 3LC', g:'200/655 R17', k:'1.3', w:'1.5'},
+  {h:'Continental', m:'Track Slick', g:'120/70 R17', k:'2.0', w:'2.2'},
+  {h:'Continental', m:'Track Slick', g:'180/55 R17', k:'1.4', w:'1.6'},
+  {h:'Continental', m:'Track Slick', g:'190/60 R17', k:'1.4', w:'1.6'},
+  {h:'Continental', m:'Race Attack Comp', g:'120/70 17', k:'2.0', w:'2.2'},
+  {h:'Continental', m:'Race Attack Comp', g:'180/55 17', k:'1.6', w:'1.8'},
+  {h:'Continental', m:'Race Attack Comp', g:'190 & 200/55 17', k:'1.6', w:'1.8'},
+  {h:'Dunlop', m:'KR106 NTEC Slick', g:'120/70 R 17', k:'2.0', w:'2.3'},
+  {h:'Dunlop', m:'KR108 NTEC Slick', g:'195/65 R17', k:'1.3', w:'1.5'},
+  {h:'Dunlop', m:'KR108 NTEC Slick', g:'205/60 R17', k:'1.3', w:'1.5'},
+  {h:'Dunlop', m:'GP Racer D212 Slick', g:'120/70 R 17', k:'2.0', w:'2.3'},
+  {h:'Dunlop', m:'GP Racer D212 Slick', g:'190/55 R 17', k:'1.3', w:'1.5'},
+  {h:'Dunlop', m:'GP Racer D212 Slick', g:'200/55 R 17', k:'1.3', w:'1.5'},
+  {h:'Metzeler', m:'Racetec RR Slick', g:'120/70 R 17', k:'2.1', w:'2.3'},
+  {h:'Metzeler', m:'Racetec RR Slick', g:'180/55 R 17', k:'1.6', w:'1.8'},
+  {h:'Metzeler', m:'Racetec RR Slick', g:'200/60 17', k:'1.5', w:'1.7'},
+  {h:'Metzeler', m:'Racetec TD Slick', g:'120/70 17', k:'2.0', w:'2.3'},
+  {h:'Metzeler', m:'Racetec TD Slick', g:'180/55 & 60 17', k:'1.6', w:'1.8'},
+  {h:'Metzeler', m:'Racetec TD Slick', g:'190 & 200/55 17', k:'1.6', w:'1.8'},
+  {h:'Metzeler', m:'Racetec RR', g:'120/70 ZR 17', k:'2.1', w:'2.3'},
+  {h:'Metzeler', m:'Racetec RR', g:'180/60 ZR 17', k:'1.6', w:'1.8'},
+  {h:'Metzeler', m:'Racetec RR', g:'180/55 ZR 17', k:'1.5', w:'1.7'},
+  {h:'Metzeler', m:'Racetec RR', g:'190/55 ZR 17', k:'1.6', w:'1.8'},
+  {h:'Metzeler', m:'Racetec RR', g:'200/55 ZR 17', k:'1.6', w:'1.8'},
+  {h:'Pirelli', m:'Diablo Superbike Slick', g:'125/70 17', k:'2.0', w:'2.3'},
+  {h:'Pirelli', m:'Diablo Superbike Slick', g:'200/65 17', k:'1.4', w:'1.65'},
+  {h:'Pirelli', m:'Diablo Superbike Slick', g:'120/70 R17 NHS', k:'2.2', w:'2.4'},
+  {h:'Pirelli', m:'Diablo Superbike Slick', g:'180/55 R17 NHS', k:'1.5', w:'1.7'},
+  {h:'Pirelli', m:'Diablo Superbike Slick', g:'190/55 R17 NHS', k:'1.5', w:'1.7'},
+  {h:'Pirelli', m:'Diablo Superbike Slick', g:'200/60 R17 NHS', k:'1.5', w:'1.7'},
+  {h:'Pirelli', m:'Diablo Supercorsa V3', g:'120/70 ZR17', k:'2.1', w:'2.3'},
+  {h:'Pirelli', m:'Diablo Supercorsa V3', g:'180/60 ZR17', k:'1.5', w:'1.7'},
+  {h:'Pirelli', m:'Diablo Supercorsa V3', g:'190/55 ZR17', k:'1.6', w:'1.8'},
+  {h:'Pirelli', m:'Diablo Supercorsa V3', g:'200/55 & 60 ZR17', k:'1.5', w:'1.7'}
+];
+
 var DEFAULT_CHECKLIST = [
   {cat:'Kleidung', items:['Motorrad Socken','Unterwäsche','Handschuhe 2x','Kombi','Rückenprotektor','Brustprotektor','Airbag Weste','Helm','Ersatzhelm','Stiefel','Badelatschen','Jacke','Hygiene']},
   {cat:'Dokumente', items:['Fahrzeugschein','Führerschein','Anmeldeunterlagen Veranstalter','Anmeldeunterlagen Strecke','Zweitschlüssel Motorrad','Zweitschlüssel Hänger','SD Karten']},
@@ -1895,6 +2279,12 @@ function renderTdCard(td) {
         '📅 ' + dateStr +
         (td.organizer ? ' · ' + td.organizer : '') +
         (bikeName ? '<br>🏍️ ' + bikeName : '') +
+        (function(){
+          var ids = td.tyreSetupIds || (td.tyreSetupId ? [td.tyreSetupId] : []);
+          if (!ids.length || !bike || !bike.tyreSetups) return '';
+          var names = ids.map(function(id){ var s=bike.tyreSetups.find(function(x){return x.id===id;}); return s?(s.name||s.type):null; }).filter(Boolean);
+          return names.length ? '<br>🛞 ' + names.join(', ') : '';
+        })() +
         dayLines +
         (total_cost ? '<br>💶 Gesamt: ' + total_cost.toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €' : '') +
         (total > 0 ? '<br>📋 Checkliste: ' + checked + '/' + total + (checked===total && total>0 ? ' ✅' : '') : '') +
@@ -2031,9 +2421,39 @@ function openTrackdayModal(id) {
     sel.appendChild(opt);
   });
   if (td && td.bikeId) sel.value = td.bikeId;
+  tdSelectedSetups = (td && td.tyreSetupIds) ? td.tyreSetupIds.slice() : (td && td.tyreSetupId ? [td.tyreSetupId] : []);
+  populateTdTyreSetups();
   document.getElementById('trackdayModal').classList.add('open');
 }
 function closeTrackdayModal() { document.getElementById('trackdayModal').classList.remove('open'); editingTrackdayId = null; }
+
+var tdSelectedSetups = [];
+
+function populateTdTyreSetups() {
+  var bikeId = document.getElementById('tdBike').value;
+  var el = document.getElementById('tdTyreSetups');
+  var bike = state.bikes.find(function(b){return b.id===bikeId;});
+  if (!bike || !bike.tyreSetups || !bike.tyreSetups.length) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:0.8rem">Keine Setups für dieses Motorrad</div>';
+    return;
+  }
+  // Drop selections that no longer exist on this bike
+  var validIds = bike.tyreSetups.map(function(s){return s.id;});
+  tdSelectedSetups = tdSelectedSetups.filter(function(id){ return validIds.indexOf(id)!==-1; });
+  el.innerHTML = bike.tyreSetups.map(function(s){
+    var checked = tdSelectedSetups.indexOf(s.id)!==-1;
+    var label = (s.name||s.type) + (s.type ? ' ('+s.type+')' : '');
+    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 2px;min-height:38px;cursor:pointer">' +
+      '<input type="checkbox" ' + (checked?'checked':'') + ' onchange="toggleTdSetup(\''+s.id+'\',this.checked)" style="width:18px;height:18px;accent-color:var(--accent)" />' +
+      '<span style="font-size:0.88rem">'+label+'</span></label>';
+  }).join('');
+}
+
+function toggleTdSetup(id, on) {
+  var i = tdSelectedSetups.indexOf(id);
+  if (on && i===-1) tdSelectedSetups.push(id);
+  if (!on && i!==-1) tdSelectedSetups.splice(i,1);
+}
 
 function saveTrackday() {
   var track = document.getElementById('tdTrack').value.trim();
@@ -2046,12 +2466,13 @@ function saveTrackday() {
     track: track, status: document.getElementById('tdStatus').value,
     organizer: document.getElementById('tdOrganizer').value.trim(),
     bikeId: document.getElementById('tdBike').value || null,
+    tyreSetupIds: tdSelectedSetups.slice(),
     notes: document.getElementById('tdNotes').value.trim(),
     days: days
   };
   if (editingTrackdayId) {
     var td = state.trackdays.find(function(x){return x.id===editingTrackdayId;});
-    if (td) { for (var k in data) td[k] = data[k]; }
+    if (td) { delete td.tyreSetupId; for (var k in data) td[k] = data[k]; }
   } else {
     data.id = uid();
     data.checklist = buildDefaultChecklist();
@@ -2326,7 +2747,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v32';
+var APP_VERSION = 'v34';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
