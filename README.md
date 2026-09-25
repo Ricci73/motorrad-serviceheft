@@ -74,6 +74,7 @@ URL im Browser öffnen. In Chrome/Edge: Adressleiste → Install-Icon (⊕) klic
 - Reines **HTML + CSS + JavaScript** — keine Frameworks
 - **IndexedDB** + localStorage (GB-Kapazität)
 - **PWA** mit Manifest + Service Worker — installierbar und offline-fähig
+- **Versionsnummer** im Header + automatischer **Update-Hinweis** bei neuer Version
 - Automatische Foto-Komprimierung via Canvas API
 - SVG-basierte Diagramme (km-Verlauf)
 
