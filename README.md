@@ -22,6 +22,9 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - Editierbare **Reifentabelle** (hinzufügen/ändern/löschen, JSON Export/Import) — Reifen für Straße und/oder Rennstrecke mit eigenen Drücken; dient als Vorbefüllung für Setups
 - Setups mit Trackdays verknüpfbar (mehrere pro Trackday wählbar)
 - Übersichtstabelle über alle Setups
+- **Reifen-Vorrat** (im Lager unter 🛞 Reifen) — Reifen aus der Reifentabelle wählen, getrennt nach Vorne/Hinten, mit Kaufmenge, Preis, Mindestbestand
+- **Chargen mit eigener DOT** — mehrere Fertigungschargen pro Reifen; Bestand = Summe der Chargen; Nachkaufen mit anderer DOT legt eine neue Charge an
+- **Automatischer Abzug bei Reifenwechsel-Service** (FIFO — älteste DOT zuerst), Kosten und verbrauchte DOT werden im Serviceeintrag übernommen
 - **Detailansicht** (ℹ️) für Trackdays — alle Tage, Setups, Checklisten-Fortschritt read-only
 
 ### 🔧 Wartungsplan
@@ -42,6 +45,7 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - **Verbrauchshistorie** — jede Anlage/Nachkauf/Verbrauch mit Datum
 - **Niedrigbestand-Warnung** bei Unterschreitung des Mindestbestands
 - **Kategorie-Filter** im Lager
+- Umschalter **📦 Material / 🛞 Reifen** — Reifen-Vorrat separat verwaltet (siehe 🛞 Reifen)
 
 ### 🏁 Trackdays
 - Rennstrecken-Termine planen (Strecke, Veranstalter, Motorrad, Status)
