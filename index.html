@@ -443,7 +443,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk</h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v30</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -2325,9 +2325,37 @@ function exportTrackdayICS() {
   checkBackupReminder();
 })();
 
+// ── APP VERSION + UPDATE DETECTION ──
+var APP_VERSION = 'v31';
+(function(){
+  var lbl = document.getElementById('appVersionLabel');
+  if (lbl) lbl.textContent = APP_VERSION;
+})();
+
+function showUpdateBanner() {
+  if (document.getElementById('updateBanner')) return;
+  var b = document.createElement('div');
+  b.id = 'updateBanner';
+  b.style.cssText = 'position:fixed;left:0;right:0;bottom:calc(var(--nav-h) + var(--safe-bottom));background:var(--accent);color:#fff;padding:12px 16px;font-size:0.85rem;z-index:600;display:flex;align-items:center;justify-content:space-between;box-shadow:0 -2px 12px rgba(0,0,0,0.3)';
+  b.innerHTML = '<span>🔄 Neue Version verfügbar</span><button style="background:#fff;color:var(--accent);border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer" onclick="location.reload()">Jetzt laden</button>';
+  document.body.appendChild(b);
+}
+
 // ── SERVICE WORKER ──
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(function(){});
+  navigator.serviceWorker.register('./sw.js').then(function(reg) {
+    // Detect a waiting/new service worker → new version available
+    if (reg.waiting) showUpdateBanner();
+    reg.addEventListener('updatefound', function() {
+      var nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener('statechange', function() {
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+          showUpdateBanner();
+        }
+      });
+    });
+  }).catch(function(){});
 }
 </script>
 </body>
