@@ -625,9 +625,9 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-header"><div class="modal-title" id="tdModalTitle">Trackday hinzufügen</div><button class="btn-icon" onclick="closeTrackdayModal()">✕</button></div>
-    <div class="form-group"><label>Strecke *</label><input id="tdTrack" placeholder="z.B. Anneau du Rhin, Nürburgring…" /></div>
+    <div class="form-group"><label>Strecke *</label><input id="tdTrack" list="trackList" placeholder="z.B. Anneau du Rhin, Nürburgring…" autocomplete="off" /><datalist id="trackList"></datalist></div>
     <div class="form-row">
-      <div class="form-group"><label>Veranstalter</label><input id="tdOrganizer" placeholder="Speer Racing, HPS…" /></div>
+      <div class="form-group"><label>Veranstalter</label><input id="tdOrganizer" list="organizerList" placeholder="Speer Racing, HPS…" autocomplete="off" /><datalist id="organizerList"></datalist></div>
       <div class="form-group"><label>Status</label>
         <select id="tdStatus"><option>Geplant</option><option>Gebucht</option><option>Erledigt</option><option>Storniert</option></select>
       </div>
@@ -1986,10 +1986,23 @@ function generateTdDays() {
   showToast('⚡ ' + days.length + ' Tage generiert');
 }
 
+function populateTrackdayDatalists() {
+  var tracks = [];
+  var organizers = [];
+  (state.trackdays||[]).forEach(function(t){
+    if (t.track && tracks.indexOf(t.track) === -1) tracks.push(t.track);
+    if (t.organizer && organizers.indexOf(t.organizer) === -1) organizers.push(t.organizer);
+  });
+  tracks.sort(); organizers.sort();
+  document.getElementById('trackList').innerHTML = tracks.map(function(v){ return '<option value="'+v.replace(/"/g,'&quot;')+'"></option>'; }).join('');
+  document.getElementById('organizerList').innerHTML = organizers.map(function(v){ return '<option value="'+v.replace(/"/g,'&quot;')+'"></option>'; }).join('');
+}
+
 function openTrackdayModal(id) {
   editingTrackdayId = id || null;
   var td = id ? (state.trackdays||[]).find(function(x){return x.id===id;}) : null;
   if (td) migrateTd(td);
+  populateTrackdayDatalists();
   document.getElementById('tdModalTitle').textContent = id ? 'Trackday bearbeiten' : 'Trackday hinzufügen';
   document.getElementById('tdStatus').value = td ? td.status : 'Geplant';
   document.getElementById('tdTrack').value = td ? td.track : '';
