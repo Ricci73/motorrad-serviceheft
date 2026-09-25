@@ -276,22 +276,23 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <div class="form-group"><label>Größe</label><input id="teGroesse" placeholder="120/70 ZR17" /></div>
     </div>
     <div class="form-group">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.9rem;min-height:40px">
-        <input type="checkbox" id="teStreet" style="width:18px;height:18px;accent-color:var(--accent)" onchange="toggleTyreEntryFields()" /> 🛣️ Für Straße
-      </label>
-      <div id="teStreetFields" style="display:none;padding-left:26px">
-        <div class="form-group" style="margin-bottom:6px"><label>Druck kalt (bar)</label><input id="teStreetCold" type="number" inputmode="decimal" step="0.05" /></div>
+      <label>Verwendung *</label>
+      <div style="display:flex;gap:8px">
+        <button type="button" id="teStreetBtn" onclick="toggleTyreUse('street')" style="flex:1;padding:12px;border-radius:10px;border:2px solid var(--border);background:var(--surface2);color:var(--text2);font-weight:600;cursor:pointer;min-height:48px">🛣️ Straße</button>
+        <button type="button" id="teTrackBtn" onclick="toggleTyreUse('track')" style="flex:1;padding:12px;border-radius:10px;border:2px solid var(--border);background:var(--surface2);color:var(--text2);font-weight:600;cursor:pointer;min-height:48px">🏁 Rennstrecke</button>
       </div>
+      <input type="checkbox" id="teStreet" style="display:none" />
+      <input type="checkbox" id="teTrack" style="display:none" />
     </div>
-    <div class="form-group">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.9rem;min-height:40px">
-        <input type="checkbox" id="teTrack" style="width:18px;height:18px;accent-color:var(--accent)" onchange="toggleTyreEntryFields()" /> 🏁 Für Rennstrecke
-      </label>
-      <div id="teTrackFields" style="display:none;padding-left:26px">
-        <div class="form-row">
-          <div class="form-group" style="margin-bottom:6px"><label>Druck kalt (bar)</label><input id="teTrackCold" type="number" inputmode="decimal" step="0.05" /></div>
-          <div class="form-group" style="margin-bottom:6px"><label>Druck warm (bar)</label><input id="teTrackWarm" type="number" inputmode="decimal" step="0.05" /></div>
-        </div>
+    <div id="teStreetFields" style="display:none">
+      <div class="section-label" style="margin-top:4px">🛣️ STRASSE</div>
+      <div class="form-group" style="margin-bottom:6px"><label>Druck kalt (bar)</label><input id="teStreetCold" type="number" inputmode="decimal" step="0.05" /></div>
+    </div>
+    <div id="teTrackFields" style="display:none">
+      <div class="section-label" style="margin-top:4px">🏁 RENNSTRECKE</div>
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:6px"><label>Druck kalt (bar)</label><input id="teTrackCold" type="number" inputmode="decimal" step="0.05" /></div>
+        <div class="form-group" style="margin-bottom:6px"><label>Druck warm (bar)</label><input id="teTrackWarm" type="number" inputmode="decimal" step="0.05" /></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -510,7 +511,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v34</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v35</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -1151,8 +1152,32 @@ function renderTyreTable() {
 }
 
 function toggleTyreEntryFields() {
-  document.getElementById('teStreetFields').style.display = document.getElementById('teStreet').checked ? 'block' : 'none';
-  document.getElementById('teTrackFields').style.display = document.getElementById('teTrack').checked ? 'block' : 'none';
+  var street = document.getElementById('teStreet').checked;
+  var track = document.getElementById('teTrack').checked;
+  document.getElementById('teStreetFields').style.display = street ? 'block' : 'none';
+  document.getElementById('teTrackFields').style.display = track ? 'block' : 'none';
+  styleTyreBtn('teStreetBtn', street);
+  styleTyreBtn('teTrackBtn', track);
+}
+
+function styleTyreBtn(id, on) {
+  var b = document.getElementById(id);
+  if (!b) return;
+  if (on) {
+    b.style.background = 'var(--accent)';
+    b.style.borderColor = 'var(--accent)';
+    b.style.color = '#fff';
+  } else {
+    b.style.background = 'var(--surface2)';
+    b.style.borderColor = 'var(--border)';
+    b.style.color = 'var(--text2)';
+  }
+}
+
+function toggleTyreUse(which) {
+  var cb = document.getElementById(which === 'street' ? 'teStreet' : 'teTrack');
+  cb.checked = !cb.checked;
+  toggleTyreEntryFields();
 }
 
 function openTyreEntry(id) {
@@ -2747,7 +2772,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v34';
+var APP_VERSION = 'v35';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
