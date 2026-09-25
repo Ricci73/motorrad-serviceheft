@@ -22,6 +22,7 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - Editierbare **Reifentabelle** (hinzufügen/ändern/löschen, JSON Export/Import) — Reifen für Straße und/oder Rennstrecke mit eigenen Drücken; dient als Vorbefüllung für Setups
 - Setups mit Trackdays verknüpfbar (mehrere pro Trackday wählbar)
 - Übersichtstabelle über alle Setups
+- **Detailansicht** (ℹ️) für Trackdays — alle Tage, Setups, Checklisten-Fortschritt read-only
 
 ### 🔧 Wartungsplan
 - Konfigurierbare Intervalle (km & Monate)
