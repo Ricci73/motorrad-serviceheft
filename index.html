@@ -236,6 +236,18 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 </head>
 <body>
 <div id="toast"></div>
+<datalist id="tyreModelList"></datalist>
+<datalist id="tyreSizeList"></datalist>
+
+<!-- ── MODAL: Reifen-Übersicht ── -->
+<div class="modal-overlay" id="tyreOverviewModal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title">🛞 Reifen-Setups Übersicht</div><button class="btn-icon" onclick="closeTyreOverview()">✕</button></div>
+    <div id="tyreOverviewContent" style="overflow-x:auto"></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeTyreOverview()">Schließen</button></div>
+  </div>
+</div>
 
 <!-- ── MODAL: Motorrad ── -->
 <div class="modal-overlay" id="bikeModal">
@@ -466,6 +478,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
   <div class="page active" id="page-bikes">
     <div class="page-header">
       <div class="page-title">Meine Motorräder</div>
+      <button class="btn btn-secondary btn-sm" onclick="openTyreOverview()">🛞 Setups</button>
     </div>
     <div class="bike-list" id="bikeGrid"></div>
   </div>
@@ -888,6 +901,7 @@ function openBikeModal(id) {
   document.getElementById('bNoHu').checked = b?.noHu||false;
   document.getElementById('bNotes').value = b?.notes||'';
   bTyreSetupsEdit = b && b.tyreSetups ? JSON.parse(JSON.stringify(b.tyreSetups)) : [];
+  populateTyreDatalists();
   renderTyreSetups();
   toggleHuFields();
   document.getElementById('bikeModal').classList.add('open');
@@ -896,6 +910,19 @@ function closeBikeModal() { document.getElementById('bikeModal').classList.remov
 
 // ── REIFEN-SETUPS ──
 var bTyreSetupsEdit = [];
+
+function populateTyreDatalists() {
+  var models = [], sizes = [];
+  state.bikes.forEach(function(b){
+    (b.tyreSetups||[]).forEach(function(s){
+      [s.frontModel, s.rearModel].forEach(function(m){ if(m && models.indexOf(m)===-1) models.push(m); });
+      [s.frontSize, s.rearSize].forEach(function(z){ if(z && sizes.indexOf(z)===-1) sizes.push(z); });
+    });
+  });
+  models.sort(); sizes.sort();
+  document.getElementById('tyreModelList').innerHTML = models.map(function(v){ return '<option value="'+v.replace(/"/g,'&quot;')+'"></option>'; }).join('');
+  document.getElementById('tyreSizeList').innerHTML = sizes.map(function(v){ return '<option value="'+v.replace(/"/g,'&quot;')+'"></option>'; }).join('');
+}
 
 function renderTyreSetups() {
   var el = document.getElementById('bTyreSetups');
@@ -912,8 +939,8 @@ function renderTyreSetups() {
     // Front
     html += '<div style="font-size:0.75rem;color:var(--text2);font-weight:700;margin:4px 0">VORNE</div>';
     html += '<div class="form-row">';
-    html += '<div class="form-group" style="margin-bottom:6px"><label>Modell</label><input value="'+(s.frontModel||'').replace(/"/g,'&quot;')+'" placeholder="Michelin Road 6" onchange="bTyreSetupsEdit['+i+'].frontModel=this.value" /></div>';
-    html += '<div class="form-group" style="margin-bottom:6px"><label>Größe</label><input value="'+(s.frontSize||'').replace(/"/g,'&quot;')+'" placeholder="120/70 ZR17" onchange="bTyreSetupsEdit['+i+'].frontSize=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Modell</label><input list="tyreModelList" autocomplete="off" value="'+(s.frontModel||'').replace(/"/g,'&quot;')+'" placeholder="Michelin Road 6" onchange="bTyreSetupsEdit['+i+'].frontModel=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Größe</label><input list="tyreSizeList" autocomplete="off" value="'+(s.frontSize||'').replace(/"/g,'&quot;')+'" placeholder="120/70 ZR17" onchange="bTyreSetupsEdit['+i+'].frontSize=this.value" /></div>';
     html += '</div>';
     html += '<div class="form-row">';
     html += '<div class="form-group" style="margin-bottom:6px"><label>Druck kalt (bar)</label><input type="number" inputmode="decimal" step="0.05" value="'+(s.frontCold||'')+'" onchange="bTyreSetupsEdit['+i+'].frontCold=this.value" /></div>';
@@ -923,8 +950,8 @@ function renderTyreSetups() {
     // Rear
     html += '<div style="font-size:0.75rem;color:var(--text2);font-weight:700;margin:4px 0">HINTEN</div>';
     html += '<div class="form-row">';
-    html += '<div class="form-group" style="margin-bottom:6px"><label>Modell</label><input value="'+(s.rearModel||'').replace(/"/g,'&quot;')+'" placeholder="Michelin Road 6" onchange="bTyreSetupsEdit['+i+'].rearModel=this.value" /></div>';
-    html += '<div class="form-group" style="margin-bottom:6px"><label>Größe</label><input value="'+(s.rearSize||'').replace(/"/g,'&quot;')+'" placeholder="190/55 ZR17" onchange="bTyreSetupsEdit['+i+'].rearSize=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Modell</label><input list="tyreModelList" autocomplete="off" value="'+(s.rearModel||'').replace(/"/g,'&quot;')+'" placeholder="Michelin Road 6" onchange="bTyreSetupsEdit['+i+'].rearModel=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:6px"><label>Größe</label><input list="tyreSizeList" autocomplete="off" value="'+(s.rearSize||'').replace(/"/g,'&quot;')+'" placeholder="190/55 ZR17" onchange="bTyreSetupsEdit['+i+'].rearSize=this.value" /></div>';
     html += '</div>';
     html += '<div class="form-row">';
     html += '<div class="form-group" style="margin-bottom:0"><label>Druck kalt (bar)</label><input type="number" inputmode="decimal" step="0.05" value="'+(s.rearCold||'')+'" onchange="bTyreSetupsEdit['+i+'].rearCold=this.value" /></div>';
@@ -944,6 +971,46 @@ function removeTyreSetup(i) {
   bTyreSetupsEdit.splice(i,1);
   renderTyreSetups();
 }
+
+// ── REIFEN-ÜBERSICHT ──
+function openTyreOverview() {
+  var rows = [];
+  state.bikes.forEach(function(b){
+    (b.tyreSetups||[]).forEach(function(s){
+      rows.push({ bike: b.make+' '+b.model, s: s });
+    });
+  });
+  var el = document.getElementById('tyreOverviewContent');
+  if (!rows.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">🛞</div><p>Noch keine Reifen-Setups angelegt.</p><p style="font-size:0.8rem">Lege sie beim Bearbeiten eines Motorrads an.</p></div>';
+  } else {
+    var pd = function(cold, warm, isTrack) {
+      var c = cold ? (cold+' bar') : '—';
+      if (isTrack && warm) return c + ' / ' + warm + ' bar';
+      return c;
+    };
+    var html = '<table class="maintenance-table" style="font-size:0.8rem"><thead><tr>' +
+      '<th>Motorrad</th><th>Setup</th><th>Reifen V/H</th><th>Größe V/H</th><th>Druck V<br><span style="font-weight:400">kalt/warm</span></th><th>Druck H<br><span style="font-weight:400">kalt/warm</span></th>' +
+      '</tr></thead><tbody>';
+    rows.forEach(function(r){
+      var s = r.s;
+      var isTrack = s.type === 'Rennstrecke';
+      var typeBadge = isTrack ? '🏁' : '🛣️';
+      html += '<tr>' +
+        '<td>'+r.bike+'</td>' +
+        '<td>'+typeBadge+' '+(s.name||s.type||'')+'</td>' +
+        '<td>'+(s.frontModel||'—')+'<br>'+(s.rearModel||'—')+'</td>' +
+        '<td>'+(s.frontSize||'—')+'<br>'+(s.rearSize||'—')+'</td>' +
+        '<td>'+pd(s.frontCold, s.frontWarm, isTrack)+'</td>' +
+        '<td>'+pd(s.rearCold, s.rearWarm, isTrack)+'</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+  document.getElementById('tyreOverviewModal').classList.add('open');
+}
+function closeTyreOverview() { document.getElementById('tyreOverviewModal').classList.remove('open'); }
 function saveBike() {
   const make = document.getElementById('bMake').value.trim();
   const model = document.getElementById('bModel').value.trim();
