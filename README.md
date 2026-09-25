@@ -15,6 +15,13 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - HU/TÜV Fälligkeit mit Ampel-Status (✅ OK / ⚠️ Bald / 🔴 Überfällig)
 - "Kein TÜV"-Flag für Rennstrecken-Motorräder
 
+### 🛞 Reifen
+- Reifen-Setups pro Motorrad (Straße = nur Kaltdruck, Rennstrecke = kalt + warm)
+- Vorne/Hinten je Modell, Größe und Drücke
+- Editierbare **Reifentabelle** (hinzufügen/ändern/löschen, JSON Export/Import) — Reifen für Straße und/oder Rennstrecke mit eigenen Drücken; dient als Vorbefüllung für Setups
+- Setups mit Trackdays verknüpfbar (mehrere pro Trackday wählbar)
+- Übersichtstabelle über alle Setups
+
 ### 🔧 Wartungsplan
 - Konfigurierbare Intervalle (km & Monate)
 - Status-Ampel pro Position
