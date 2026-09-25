@@ -302,8 +302,20 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
   </div>
 </div>
 
-<!-- ── MODAL: Motorrad ── -->
-<div class="modal-overlay" id="bikeModal">
+<!-- ── MODAL: Motorrad Details ── -->
+<div class="modal-overlay" id="bikeDetailModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="bikeDetailTitle">Motorrad</div><button class="btn-icon" onclick="closeBikeDetail()">✕</button></div>
+    <div id="bikeDetailContent"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeBikeDetail()">Schließen</button>
+      <button class="btn btn-primary" id="bikeDetailEditBtn">✏️ Bearbeiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Motorrad ── --><div class="modal-overlay" id="bikeModal">
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-header"><div class="modal-title" id="bikeModalTitle">Motorrad hinzufügen</div><button class="btn-icon" onclick="closeBikeModal()">✕</button></div>
@@ -511,7 +523,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v35</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v36</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -928,6 +940,7 @@ function renderBikes() {
         ${(b.tyreSetups && b.tyreSetups.length) ? `<div style="font-size:0.75rem;color:var(--text2);margin-top:6px">🛞 ${b.tyreSetups.map(function(s){return s.name||s.type;}).join(', ')}</div>` : ''}
       </div>
       <div class="bike-card-actions">
+        <button class="btn-icon" onclick="event.stopPropagation();openBikeDetail('${b.id}')" title="Details">ℹ️</button>
         <button class="btn-icon" onclick="event.stopPropagation();openBikeModal('${b.id}')">✏️</button>
         <button class="btn-icon" onclick="event.stopPropagation();deleteBike('${b.id}')">🗑️</button>
       </div>`;
@@ -1274,6 +1287,64 @@ function deleteBike(id) {
   if (state.selectedBike===id) state.selectedBike = state.bikes[0]?.id||null;
   save(); renderBikes(); showToast('🗑️ Gelöscht');
 }
+
+// ── MOTORRAD DETAILANSICHT (read-only) ──
+function openBikeDetail(id) {
+  var b = state.bikes.find(function(x){return x.id===id;});
+  if (!b) return;
+  document.getElementById('bikeDetailTitle').textContent = (b.icon||'🏍️') + ' ' + b.make + ' ' + b.model;
+  var rows = [];
+  var addRow = function(label, val) { if (val || val === 0) rows.push('<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.88rem"><span style="color:var(--text2)">'+label+'</span><span style="text-align:right;font-weight:600">'+val+'</span></div>'); };
+  addRow('Baujahr', b.year);
+  addRow('Kennzeichen', b.plate);
+  addRow('km-Stand', (b.km||0).toLocaleString('de-DE')+' km' + (b.kmDate ? ' <span style="font-weight:400;color:var(--text2)">('+new Date(b.kmDate).toLocaleDateString('de-DE')+')</span>' : ''));
+  var kpm = getKmPerMonth(b);
+  if (kpm) addRow('Ø Laufleistung', '~'+kpm.toLocaleString('de-DE')+' km/Monat');
+  addRow('FIN / VIN', b.fin);
+  addRow('Erstzulassung', b.firstReg ? new Date(b.firstReg).toLocaleDateString('de-DE') : '');
+  // HU
+  if (b.noHu) addRow('HU / TÜV', '🏁 Kein TÜV');
+  else if (b.huDate) addRow('Nächste HU', new Date(b.huDate).toLocaleDateString('de-DE'));
+  if (b.huLast) addRow('Letzte HU', new Date(b.huLast).toLocaleDateString('de-DE'));
+  if (b.notes) addRow('Notizen', b.notes);
+
+  var html = '<div class="card" style="margin-bottom:12px">' + (rows.join('') || '<div style="color:var(--text2);font-size:0.85rem">Keine weiteren Daten</div>') + '</div>';
+
+  // HU status badge
+  if (b.huDate || b.noHu) html = '<div style="margin-bottom:12px">' + huBadge(b) + '</div>' + html;
+
+  // Tyre setups
+  if (b.tyreSetups && b.tyreSetups.length) {
+    html += '<div class="section-label">🛞 REIFEN-SETUPS</div>';
+    b.tyreSetups.forEach(function(s){
+      var isTrack = s.type === 'Rennstrecke';
+      var pf = function(cold, warm){ return isTrack ? ((cold||'?')+'/'+(warm||'?')+' bar') : ((cold||'?')+' bar'); };
+      html += '<div class="maint-item" style="border-left-color:var(--accent2)"><div class="maint-item-body">';
+      html += '<div class="maint-name">'+(s.name||s.type)+' <span style="font-size:0.75rem;color:var(--text2);font-weight:400">'+(s.type||'')+'</span></div>';
+      html += '<div class="maint-details">';
+      html += 'V: '+(s.frontModel||'—')+' '+(s.frontSize||'')+' · '+pf(s.frontCold,s.frontWarm)+'<br>';
+      html += 'H: '+(s.rearModel||'—')+' '+(s.rearSize||'')+' · '+pf(s.rearCold,s.rearWarm);
+      html += '</div></div></div>';
+    });
+  }
+
+  // Service stats
+  var logs = state.logs[id] || [];
+  var maint = state.maintenance[id] || [];
+  var totalCost = logs.reduce(function(s,l){return s+(l.cost||0);},0);
+  var overdue = maint.filter(function(m){return getMaintenanceStatus(m, b.km||0)==='overdue';}).length;
+  html += '<div class="section-label">📊 STATISTIK</div><div class="stats-grid">';
+  html += '<div class="stat-card"><div class="stat-value">'+logs.length+'</div><div class="stat-label">Service-Einträge</div></div>';
+  html += '<div class="stat-card"><div class="stat-value">'+totalCost.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</div><div class="stat-label">Gesamtkosten</div></div>';
+  html += '<div class="stat-card"><div class="stat-value">'+maint.length+'</div><div class="stat-label">Wartungspositionen</div></div>';
+  html += '<div class="stat-card"><div class="stat-value" style="color:'+(overdue>0?'var(--danger)':'var(--success)')+'">'+overdue+'</div><div class="stat-label">Überfällig</div></div>';
+  html += '</div>';
+
+  document.getElementById('bikeDetailContent').innerHTML = html;
+  document.getElementById('bikeDetailEditBtn').onclick = function(){ closeBikeDetail(); openBikeModal(id); };
+  document.getElementById('bikeDetailModal').classList.add('open');
+}
+function closeBikeDetail() { document.getElementById('bikeDetailModal').classList.remove('open'); }
 
 // ── BIKE SELECTORS ──
 function renderBikeSelectors() {
@@ -2772,7 +2843,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v35';
+var APP_VERSION = 'v36';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
