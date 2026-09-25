@@ -1,4 +1,4 @@
-const CACHE_NAME = "bikerdesk-v31";
+const CACHE_NAME = "bikerdesk-v32";
 const ASSETS = ["./", "./index.html", "./manifest.json"];
 
 self.addEventListener("install", function(e) {
@@ -7,7 +7,13 @@ self.addEventListener("install", function(e) {
       return cache.addAll(ASSETS);
     })
   );
-  self.skipWaiting();
+  // Do NOT auto-skipWaiting: the page shows an update banner and calls SKIP_WAITING
+});
+
+self.addEventListener("message", function(e) {
+  if (e.data && e.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", function(e) {
@@ -26,7 +32,6 @@ self.addEventListener("fetch", function(e) {
   var req = e.request;
   var isHTML = req.mode === "navigate" || (req.headers.get("accept") || "").indexOf("text/html") !== -1;
   if (isHTML) {
-    // Network-first for the app shell so updates arrive immediately
     e.respondWith(
       fetch(req).then(function(response) {
         var clone = response.clone();
@@ -38,7 +43,6 @@ self.addEventListener("fetch", function(e) {
     );
     return;
   }
-  // Cache-first for other assets
   e.respondWith(
     caches.match(req).then(function(cached) {
       return cached || fetch(req).then(function(response) {
