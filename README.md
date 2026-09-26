@@ -15,6 +15,7 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - HU/TÜV Fälligkeit mit Ampel-Status (✅ OK / ⚠️ Bald / 🔴 Überfällig)
 - "Kein TÜV"-Flag für Rennstrecken-Motorräder
 - **Detailansicht** (ℹ️) — alle Infos, Reifen-Setups und Statistik eines Motorrads ansehen ohne Bearbeiten-Modus
+- **Drehmomente** pro Motorrad — editierbare Liste (Schraubstelle + Nm + Notiz), z.B. fürs Reifenwechseln; angezeigt in der Detailansicht und als Nachschlag-Karte beim Reifenwechsel-Service
 
 ### 🛞 Reifen
 - Reifen-Setups pro Motorrad (Straße = nur Kaltdruck, Rennstrecke = kalt + warm)
@@ -62,7 +63,7 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - **⚡ Schnellbackup** — 1 Tap sichert alle Daten als JSON
 - **Backup-Erinnerung** — Hinweis wenn letztes Backup > 7 Tage her
 - JSON-Backup, CSV-Export, PDF-Export, Kalender (.ics)
-- Import mit Ersetzen- oder Merge-Modus (Merge fügt neue Motorräder, Trackdays und Material hinzu)
+- Import mit Ersetzen- oder Merge-Modus (Merge fügt neue Motorräder, Trackdays und Material hinzu; Drehmomente werden in vorhandene Motorräder ergänzt)
 
 ---
 
