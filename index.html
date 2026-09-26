@@ -355,6 +355,10 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
     <div class="section-label" style="margin-top:8px">🛞 REIFEN-SETUPS</div>
     <div id="bTyreSetups"></div>
     <button type="button" class="btn btn-secondary btn-sm" onclick="addTyreSetup()" style="width:100%;justify-content:center;margin-top:8px">+ Reifen-Setup</button>
+    <div class="section-label" style="margin-top:12px">🔧 DREHMOMENTE</div>
+    <div style="font-size:0.78rem;color:var(--text2);margin-bottom:6px">Schrauben & Anzugsmomente (Nm) — z.B. für den Reifenwechsel</div>
+    <div id="bTorqueSpecs"></div>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="addTorqueSpec()" style="width:100%;justify-content:center;margin-top:8px">+ Drehmoment</button>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeBikeModal()">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveBike()">💾 Speichern</button>
@@ -417,6 +421,10 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <label>🛞 Reifen aus Vorrat (bei Reifenwechsel)</label>
       <div id="logTyreList"></div>
       <button type="button" class="btn btn-secondary btn-sm" onclick="addLogTyre()" style="margin-top:8px;width:100%;justify-content:center">+ Reifen aus Vorrat</button>
+    </div>
+    <div class="form-group" id="logTorqueGroup" style="display:none">
+      <label>🔧 Drehmomente (Nachschlag)</label>
+      <div id="logTorqueRef" style="background:var(--surface2);border-radius:8px;padding:8px"></div>
     </div>
     <div class="form-group">
       <label>Fotos / Belege</label>
@@ -534,7 +542,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v43</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v44</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -1053,8 +1061,10 @@ function openBikeModal(id) {
   document.getElementById('bNoHu').checked = b?.noHu||false;
   document.getElementById('bNotes').value = b?.notes||'';
   bTyreSetupsEdit = b && b.tyreSetups ? JSON.parse(JSON.stringify(b.tyreSetups)) : [];
+  bTorqueEdit = b && b.torqueSpecs ? JSON.parse(JSON.stringify(b.torqueSpecs)) : [];
   populateTyreDatalists();
   renderTyreSetups();
+  renderTorqueSpecs();
   toggleHuFields();
   document.getElementById('bikeModal').classList.add('open');
 }
@@ -1193,6 +1203,34 @@ function addTyreSetup() {
 function removeTyreSetup(i) {
   bTyreSetupsEdit.splice(i,1);
   renderTyreSetups();
+}
+
+// ── DREHMOMENTE (Bike-Edit) ──
+var bTorqueEdit = [];
+function renderTorqueSpecs() {
+  var el = document.getElementById('bTorqueSpecs');
+  if (!bTorqueEdit.length) { el.innerHTML = '<div style="color:var(--text2);font-size:0.8rem;padding:4px 0">Noch keine Drehmomente</div>'; return; }
+  var html = '';
+  for (var i=0;i<bTorqueEdit.length;i++) {
+    var t = bTorqueEdit[i];
+    html += '<div style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:8px">';
+    html += '<div class="form-row" style="align-items:flex-end">';
+    html += '<div class="form-group" style="margin-bottom:0;flex:2"><label>Schraubstelle</label><input value="'+(t.stelle||'').replace(/"/g,'&quot;')+'" placeholder="z.B. Vorderachse" onchange="bTorqueEdit['+i+'].stelle=this.value" /></div>';
+    html += '<div class="form-group" style="margin-bottom:0;width:90px"><label>Nm</label><input type="number" inputmode="decimal" step="0.5" value="'+(t.nm||'')+'" onchange="bTorqueEdit['+i+'].nm=this.value" /></div>';
+    html += '<button type="button" class="btn-icon" onclick="removeTorqueSpec('+i+')" style="margin-bottom:2px">✕</button>';
+    html += '</div>';
+    html += '<div class="form-group" style="margin-bottom:0;margin-top:6px"><label>Notiz (optional)</label><input value="'+(t.notiz||'').replace(/"/g,'&quot;')+'" placeholder="z.B. über Kreuz, mit Schraubensicherung" onchange="bTorqueEdit['+i+'].notiz=this.value" /></div>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+function addTorqueSpec() {
+  bTorqueEdit.push({ id:uid(), stelle:'', nm:'', notiz:'' });
+  renderTorqueSpecs();
+}
+function removeTorqueSpec(i) {
+  bTorqueEdit.splice(i,1);
+  renderTorqueSpecs();
 }
 
 // ── REIFEN-ÜBERSICHT ──
@@ -1384,7 +1422,7 @@ function saveBike() {
   const make = document.getElementById('bMake').value.trim();
   const model = document.getElementById('bModel').value.trim();
   if (!make||!model) { showToast('Marke und Modell sind Pflichtfelder','error'); return; }
-  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', fin:document.getElementById('bFin').value.trim(), firstReg:document.getElementById('bFirstReg').value||null, huDate:document.getElementById('bHuDate').value||null, huLast:document.getElementById('bHuLast').value||null, noHu:document.getElementById('bNoHu').checked, notes:document.getElementById('bNotes').value.trim(), tyreSetups:bTyreSetupsEdit.slice() };
+  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', fin:document.getElementById('bFin').value.trim(), firstReg:document.getElementById('bFirstReg').value||null, huDate:document.getElementById('bHuDate').value||null, huLast:document.getElementById('bHuLast').value||null, noHu:document.getElementById('bNoHu').checked, notes:document.getElementById('bNotes').value.trim(), tyreSetups:bTyreSetupsEdit.slice(), torqueSpecs:bTorqueEdit.slice() };
   if (state.editingBikeId) {
     Object.assign(state.bikes.find(x=>x.id===state.editingBikeId), data);
   } else {
@@ -1443,6 +1481,19 @@ function openBikeDetail(id) {
     });
   }
 
+  // Torque specs
+  if (b.torqueSpecs && b.torqueSpecs.length) {
+    html += '<div class="section-label">🔧 DREHMOMENTE</div>';
+    html += '<div class="card" style="margin-bottom:12px">';
+    b.torqueSpecs.forEach(function(t){
+      if (!t.stelle && !t.nm) return;
+      html += '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.88rem">';
+      html += '<span style="color:var(--text2)">'+(t.stelle||'—')+(t.notiz?' <span style="font-size:0.75rem">('+t.notiz+')</span>':'')+'</span>';
+      html += '<span style="text-align:right;font-weight:700;color:var(--accent);white-space:nowrap">'+(t.nm||'?')+' Nm</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
   // Service stats
   var logs = state.logs[id] || [];
   var maint = state.maintenance[id] || [];
@@ -1622,6 +1673,17 @@ function openLogModal() {
   renderLogMaterials();
   logTyres=[];
   renderLogTyres();
+  // Drehmomente-Nachschlag für das gewählte Motorrad
+  var tg = document.getElementById('logTorqueGroup');
+  if (bike && bike.torqueSpecs && bike.torqueSpecs.length) {
+    var specs = bike.torqueSpecs.filter(function(t){return t.stelle || t.nm;});
+    if (specs.length) {
+      document.getElementById('logTorqueRef').innerHTML = specs.map(function(t){
+        return '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 2px;border-bottom:1px solid var(--border);font-size:0.82rem"><span style="color:var(--text2)">'+(t.stelle||'—')+(t.notiz?' <span style="font-size:0.72rem">('+t.notiz+')</span>':'')+'</span><span style="font-weight:700;color:var(--accent);white-space:nowrap">'+(t.nm||'?')+' Nm</span></div>';
+      }).join('');
+      tg.style.display = '';
+    } else { tg.style.display = 'none'; }
+  } else { tg.style.display = 'none'; }
   document.getElementById('logModal').classList.add('open');
 }
 function closeLogModal() { document.getElementById('logModal').classList.remove('open'); }
@@ -3280,7 +3342,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v43';
+var APP_VERSION = 'v44';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
