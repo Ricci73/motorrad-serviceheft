@@ -1815,6 +1815,15 @@ function importJSON(event) {
       } else {
         let added=0;
         data.bikes.forEach(b=>{ if(!state.bikes.find(x=>x.id===b.id)) { state.bikes.push(b); state.maintenance[b.id]=(data.maintenance||{})[b.id]||[]; state.logs[b.id]=(data.logs||{})[b.id]||[]; added++; } });
+        // Drehmomente in vorhandene Motorräder ergänzen (per id, sonst per Marke+Modell), ohne bestehende zu überschreiben
+        var torqueAdded=0;
+        var normStr=function(s){ return (s||'').toLowerCase().replace(/[\s\-]/g,''); };
+        data.bikes.forEach(function(b){
+          if (!b.torqueSpecs || !b.torqueSpecs.length) return;
+          var target = state.bikes.find(function(x){return x.id===b.id;})
+            || state.bikes.find(function(x){return normStr(x.make)===normStr(b.make) && normStr(x.model)===normStr(b.model);});
+          if (target && (!target.torqueSpecs || !target.torqueSpecs.length)) { target.torqueSpecs = b.torqueSpecs.slice(); torqueAdded++; }
+        });
         // Merge trackdays (add ones not already present by id)
         var tdAdded=0;
         if (Array.isArray(data.trackdays)) {
@@ -1834,6 +1843,7 @@ function importJSON(event) {
         if (!state.selectedBike&&state.bikes.length) state.selectedBike=state.bikes[0].id;
         var msgParts=[];
         if(added) msgParts.push(added+' Motorrad/Motorräder');
+        if(torqueAdded) msgParts.push('Drehmomente für '+torqueAdded+' Motorrad/Motorräder');
         if(tdAdded) msgParts.push(tdAdded+' Trackday(s)');
         if(invAdded) msgParts.push(invAdded+' Material');
         showToast('✅ ' + (msgParts.length?msgParts.join(', ')+' hinzugefügt':'Nichts Neues zu importieren'));
