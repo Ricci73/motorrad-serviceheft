@@ -20,6 +20,7 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - Reifen-Setups pro Motorrad (Straße = nur Kaltdruck, Rennstrecke = kalt + warm)
 - Vorne/Hinten je Modell, Größe und Drücke
 - Editierbare **Reifentabelle** (hinzufügen/ändern/löschen, JSON Export/Import) — Reifen für Straße und/oder Rennstrecke mit eigenen Drücken; dient als Vorbefüllung für Setups
+- **Position aus der Reifenbreite** — Vorne/Hinten wird automatisch aus der Größe abgeleitet (konfigurierbare Breiten-Grenze, Standard 160). Bei der Zuweisung werden an der Vorder-/Hinterreifen-Stelle nur passende Reifen vorgeschlagen (harter Filter)
 - Setups mit Trackdays verknüpfbar (mehrere pro Trackday wählbar)
 - Übersichtstabelle über alle Setups
 - **Reifen-Vorrat** (im Lager unter 🛞 Reifen) — Reifen aus der Reifentabelle wählen, getrennt nach Vorne/Hinten, mit Kaufmenge, Preis, Mindestbestand
