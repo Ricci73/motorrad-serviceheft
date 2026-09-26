@@ -1,4 +1,4 @@
-const CACHE_NAME = "bikerdesk-v43";
+const CACHE_NAME = "bikerdesk-v44";
 const ASSETS = ["./", "./index.html", "./manifest.json"];
 
 self.addEventListener("install", function(e) {
