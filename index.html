@@ -553,7 +553,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v49</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v50</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -1480,11 +1480,13 @@ function openBikeDetail(id) {
   if (b.huDate || b.noHu) html = '<div style="margin-bottom:12px">' + huBadge(b) + '</div>' + html;
 
   // Füllmengen
-  if (b.oilFilter || b.coolant) {
+  var lastOilDetail = (state.logs[id]||[]).slice().sort(function(a,b){return new Date(b.date)-new Date(a.date);}).find(function(l){return l.oilType;});
+  if (b.oilFilter || b.coolant || lastOilDetail) {
     html += '<div class="section-label">🛢️ FÜLLMENGEN</div>';
     html += '<div class="card" style="margin-bottom:12px">';
     if (b.oilFilter) html += '<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.88rem"><span style="color:var(--text2)">Motoröl (mit Filter)</span><span style="text-align:right;font-weight:700;color:var(--accent)">'+(b.oilFilter).toLocaleString('de-DE')+' L</span></div>';
     if (b.coolant) html += '<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.88rem"><span style="color:var(--text2)">Kühlflüssigkeit</span><span style="text-align:right;font-weight:700;color:var(--accent)">'+(b.coolant).toLocaleString('de-DE')+' L</span></div>';
+    if (lastOilDetail) html += '<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.88rem"><span style="color:var(--text2)">Zuletzt eingefüllt</span><span style="text-align:right;font-weight:600">'+lastOilDetail.oilType+' <span style="font-weight:400;color:var(--text2)">('+new Date(lastOilDetail.date).toLocaleDateString('de-DE')+')</span></span></div>';
     html += '</div>';
   }
 
@@ -3431,7 +3433,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v49';
+var APP_VERSION = 'v50';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
