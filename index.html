@@ -554,7 +554,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v52</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v53</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -2517,6 +2517,8 @@ function renderLogMaterials() {
     var unitPrice = invUnitPrice(inv);
     var cost = unitPrice * (m.qty||0);
     var costHtml = cost ? '<span style="font-size:0.8rem;color:var(--accent);font-weight:600;margin-left:auto">'+cost.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</span>' : '';
+    // Hinweis, wenn Material gewählt aber kein gültiger Stückpreis hinterlegt ist
+    if (inv && unitPrice <= 0) costHtml = '<span style="font-size:0.72rem;color:var(--danger);font-weight:600;margin-left:auto">⚠️ kein Preis</span>';
     var unitLabel = inv ? inv.unit : '?';
     html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;background:var(--surface2);border-radius:8px;padding:10px">';
     html += '<div style="flex:1;min-width:0">';
@@ -2542,12 +2544,14 @@ function updateLogCostPreview() {
   var el = document.getElementById('logCostPreview');
   if (!el) return;
   var matCost = 0;
+  var missingPrice = [];
   (logMaterials||[]).forEach(function(m){
     if (!m.invId || !m.qty) return;
     var inv = state.inventory.find(function(x){return x.id===m.invId;});
     if (!inv) return;
     var up = invUnitPrice(inv);
     matCost += up * m.qty;
+    if (up <= 0) missingPrice.push(inv.name);
   });
   var tyreC = 0;
   (typeof logTyres!=='undefined'?logTyres:[]).forEach(function(m){
@@ -2558,10 +2562,12 @@ function updateLogCostPreview() {
   });
   var manual = +document.getElementById('lCost').value || 0;
   var extra = matCost + tyreC;
-  if (extra > 0) {
+  var warnHtml = missingPrice.length ? '<div style="color:var(--danger);font-size:0.78rem;margin-top:4px">⚠️ Kein Preis hinterlegt: '+missingPrice.join(', ')+' — im Lager Kaufmenge & Preis eintragen</div>' : '';
+  if (extra > 0 || warnHtml) {
     var total = manual + extra;
-    el.innerHTML = 'Material/Reifen: <strong style="color:var(--accent)">'+extra.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>' +
-      (manual>0 ? ' + Kosten '+manual.toLocaleString('de-DE',{minimumFractionDigits:2})+' € = <strong>'+total.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>' : ' → Gesamt <strong>'+total.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>');
+    var mainLine = extra > 0 ? ('Material/Reifen: <strong style="color:var(--accent)">'+extra.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>' +
+      (manual>0 ? ' + Kosten '+manual.toLocaleString('de-DE',{minimumFractionDigits:2})+' € = <strong>'+total.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>' : ' → Gesamt <strong>'+total.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>')) : '';
+    el.innerHTML = mainLine + warnHtml;
   } else { el.innerHTML = ''; }
 }
 
@@ -3480,7 +3486,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v52';
+var APP_VERSION = 'v53';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
