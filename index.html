@@ -413,7 +413,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       </select>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Kosten (€)</label><input id="lCost" type="number" inputmode="decimal" step="0.01" placeholder="0.00" /></div>
+      <div class="form-group"><label>Kosten (€) <span style="font-weight:400;color:var(--text2);font-size:0.75rem">zzgl. Material/Reifen</span></label><input id="lCost" type="number" inputmode="decimal" step="0.01" placeholder="0.00" oninput="if(typeof updateLogCostPreview==='function')updateLogCostPreview()" /></div>
       <div class="form-group"><label>Werkstatt</label><input id="lWorkshop" placeholder="BMW Motorrad…" /></div>
     </div>
     <div class="form-group"><label>Notizen</label><textarea id="lNotes" placeholder="Verwendete Produkte…"></textarea></div>
@@ -422,6 +422,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <label>📦 Material aus Lager</label>
       <div id="logMaterialList"></div>
       <button type="button" class="btn btn-secondary btn-sm" onclick="addLogMaterial()" style="margin-top:8px;width:100%;justify-content:center">+ Material hinzufügen</button>
+      <div id="logCostPreview" style="margin-top:8px;font-size:0.85rem;color:var(--text2);text-align:right"></div>
     </div>
     <div class="form-group">
       <label>🛞 Reifen aus Vorrat (bei Reifenwechsel)</label>
@@ -553,7 +554,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v50</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v53</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -964,6 +965,7 @@ async function load() {
     let data = await dbLoad();
     if (data && data.bikes && data.bikes.length) {
       state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[]; state.trackdays = data.trackdays||[]; state.masterChecklist = data.masterChecklist||null; state.tyreTable = data.tyreTable||null; state.tyreStock = data.tyreStock||[]; state.tyreWidthThreshold = data.tyreWidthThreshold||160;
+      migrateInventoryUnitPrice();
       state.selectedBike = state.bikes[0]?.id || null;
       return;
     }
@@ -974,11 +976,18 @@ async function load() {
     if (d) {
       const p = JSON.parse(d);
       state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[]; state.trackdays = p.trackdays||[]; state.masterChecklist = p.masterChecklist||null; state.tyreTable = p.tyreTable||null; state.tyreStock = p.tyreStock||[]; state.tyreWidthThreshold = p.tyreWidthThreshold||160;
+      migrateInventoryUnitPrice();
       dbSave(); // migrate to IndexedDB
     }
   } catch(e) {}
   if (!state.bikes.length) addSampleData();
   else state.selectedBike = state.bikes[0]?.id || null;
+}
+// Altbestand: unitPrice einmalig aus price/qty ableiten, falls noch nicht gesetzt
+function migrateInventoryUnitPrice() {
+  (state.inventory||[]).forEach(function(it){
+    if (it.unitPrice == null && it.qty > 0 && it.price > 0) it.unitPrice = it.price / it.qty;
+  });
 }
 function addSampleData() {
   const id = uid();
@@ -1790,7 +1799,7 @@ function saveLog() {
     if (!m.invId || !m.qty) return;
     const inv = state.inventory.find(x=>x.id===m.invId);
     if (!inv) return;
-    const unitPrice = (inv.qty>0 && inv.price>0) ? (inv.price/inv.qty) : 0;
+    const unitPrice = invUnitPrice(inv);
     const cost = unitPrice * m.qty;
     materialCost += cost;
     inv.stock = Math.max(0, (inv.stock||0) - m.qty); // deduct
@@ -2275,7 +2284,7 @@ function renderInventory() {
   var items = state.inventory.filter(function(it){ return invCategoryFilter==='Alle' || it.category===invCategoryFilter; });
   if (!items.length) { el.innerHTML = '<div style="color:var(--text2);font-size:0.85rem;padding:12px">Kein Material in dieser Kategorie.</div>'; return; }
   el.innerHTML = items.map(item => {
-    const unitPrice = (item.qty > 0 && item.price > 0) ? (item.price / item.qty) : 0;
+    const unitPrice = invUnitPrice(item);
     const stockValue = unitPrice * (item.stock||0);
     const lowStock = (item.minStock != null && item.minStock > 0 && (item.stock||0) <= item.minStock);
     const bike = item.bikeId ? state.bikes.find(b=>b.id===item.bikeId) : null;
@@ -2328,6 +2337,13 @@ function openInvModal(id) {
 }
 function closeInvModal() { document.getElementById('invModal').classList.remove('open'); editingInvId=null; }
 
+// Zentraler Stückpreis: fest gespeicherter unitPrice, sonst Fallback price/qty (Altbestand)
+function invUnitPrice(inv) {
+  if (!inv) return 0;
+  if (inv.unitPrice != null && inv.unitPrice > 0) return inv.unitPrice;
+  return (inv.qty > 0 && inv.price > 0) ? (inv.price / inv.qty) : 0;
+}
+
 function saveInvItem() {
   const name = document.getElementById('invName').value.trim();
   if (!name) { showToast('Bezeichnung fehlt','error'); return; }
@@ -2342,6 +2358,8 @@ function saveInvItem() {
   // If stock not explicitly set, default to purchase quantity
   var stockField = document.getElementById('invStock').value.trim();
   if (stockField === '' && data.qty > 0) data.stock = data.qty;
+  // Fester Stückpreis (€/Einheit) aus Preis gesamt ÷ Kaufmenge
+  data.unitPrice = (data.qty > 0 && data.price > 0) ? (data.price / data.qty) : 0;
   if (editingInvId) {
     var existing = state.inventory.find(x=>x.id===editingInvId);
     // preserve history
@@ -2366,7 +2384,7 @@ function openRestockModal(id) {
   restockItemId = id;
   var item = state.inventory.find(function(x){return x.id===id;});
   if (!item) return;
-  var unitPrice = (item.qty > 0 && item.price > 0) ? (item.price / item.qty) : 0;
+  var unitPrice = invUnitPrice(item);
   document.getElementById('restockTitle').textContent = '🛒 ' + item.name + ' nachkaufen';
   document.getElementById('restockInfo').innerHTML = 'Aktuell: <strong>' + (item.stock||0).toLocaleString('de-DE',{maximumFractionDigits:1}) + ' ' + item.unit + '</strong>' + (unitPrice ? ' zu ' + unitPrice.toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €/' + item.unit : '');
   document.getElementById('restockQty').value = '';
@@ -2382,21 +2400,20 @@ function saveRestock() {
   var addPrice = +document.getElementById('restockPrice').value || 0;
   var date = document.getElementById('restockDate').value || new Date().toISOString().split('T')[0];
   if (!addQty) { showToast('Menge angeben','error'); return; }
-  // Weighted average (Option A):
+  // Gewichteter Durchschnitts-Stückpreis
   var oldStock = +item.stock || 0;
-  var oldUnitPrice = (item.qty > 0 && item.price > 0) ? (item.price / item.qty) : 0;
+  var oldUnitPrice = invUnitPrice(item);
   var oldValue = oldStock * oldUnitPrice;
   var newValue = oldValue + addPrice;
   var newStock = oldStock + addQty;
   item.stock = newStock;
-  // Store the new total qty/price basis so unitPrice reflects weighted average
   item.qty = newStock;
   item.price = newValue;
+  item.unitPrice = newStock > 0 ? (newValue / newStock) : 0;
   if (!item.history) item.history = [];
   item.history.push({ type:'Nachkauf', qty:addQty, price:addPrice, date:date });
   save(); closeRestockModal(); renderInventory();
-  var newUnitPrice = newStock > 0 ? newValue / newStock : 0;
-  showToast('🛒 +' + addQty + ' ' + item.unit + ' · neuer Ø ' + newUnitPrice.toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €/' + item.unit);
+  showToast('🛒 +' + addQty + ' ' + item.unit + ' · neuer Ø ' + item.unitPrice.toLocaleString('de-DE',{minimumFractionDigits:2}) + ' €/' + item.unit);
 }
 
 // ── VERBRAUCHSHISTORIE ──
@@ -2468,6 +2485,7 @@ function renderLogTyres() {
   el.innerHTML = html;
   var selects = el.querySelectorAll('select');
   logTyres.forEach(function(m,i){ if(selects[i]) selects[i].value = m.tyreId; });
+  if (typeof updateLogCostPreview==='function') updateLogCostPreview();
 }
 function removeLogMaterial(i) {
   logMaterials.splice(i,1);
@@ -2496,9 +2514,11 @@ function renderLogMaterials() {
   for (var i = 0; i < logMaterials.length; i++) {
     var m = logMaterials[i];
     var inv = state.inventory.find(function(x){return x.id===m.invId;});
-    var unitPrice = (inv && inv.qty>0 && inv.price>0) ? (inv.price/inv.qty) : 0;
+    var unitPrice = invUnitPrice(inv);
     var cost = unitPrice * (m.qty||0);
     var costHtml = cost ? '<span style="font-size:0.8rem;color:var(--accent);font-weight:600;margin-left:auto">'+cost.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</span>' : '';
+    // Hinweis, wenn Material gewählt aber kein gültiger Stückpreis hinterlegt ist
+    if (inv && unitPrice <= 0) costHtml = '<span style="font-size:0.72rem;color:var(--danger);font-weight:600;margin-left:auto">⚠️ kein Preis</span>';
     var unitLabel = inv ? inv.unit : '?';
     html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;background:var(--surface2);border-radius:8px;padding:10px">';
     html += '<div style="flex:1;min-width:0">';
@@ -2516,6 +2536,39 @@ function renderLogMaterials() {
   // Fix selected values
   var selects = el.querySelectorAll('select');
   logMaterials.forEach(function(m,i) { if(selects[i]) selects[i].value = m.invId; });
+  updateLogCostPreview();
+}
+
+// Live-Vorschau: Material- + Reifenkosten + manuelle Kosten = Gesamt
+function updateLogCostPreview() {
+  var el = document.getElementById('logCostPreview');
+  if (!el) return;
+  var matCost = 0;
+  var missingPrice = [];
+  (logMaterials||[]).forEach(function(m){
+    if (!m.invId || !m.qty) return;
+    var inv = state.inventory.find(function(x){return x.id===m.invId;});
+    if (!inv) return;
+    var up = invUnitPrice(inv);
+    matCost += up * m.qty;
+    if (up <= 0) missingPrice.push(inv.name);
+  });
+  var tyreC = 0;
+  (typeof logTyres!=='undefined'?logTyres:[]).forEach(function(m){
+    if (!m.tyreId || !m.qty) return;
+    var t = (state.tyreStock||[]).find(function(x){return x.id===m.tyreId;});
+    if (!t || !t.batches) return;
+    var rem=m.qty; for (var bi=0;bi<t.batches.length&&rem>0;bi++){ var take=Math.min(t.batches[bi].qty||0,rem); tyreC+=(t.batches[bi].price||0)*take; rem-=take; }
+  });
+  var manual = +document.getElementById('lCost').value || 0;
+  var extra = matCost + tyreC;
+  var warnHtml = missingPrice.length ? '<div style="color:var(--danger);font-size:0.78rem;margin-top:4px">⚠️ Kein Preis hinterlegt: '+missingPrice.join(', ')+' — im Lager Kaufmenge & Preis eintragen</div>' : '';
+  if (extra > 0 || warnHtml) {
+    var total = manual + extra;
+    var mainLine = extra > 0 ? ('Material/Reifen: <strong style="color:var(--accent)">'+extra.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>' +
+      (manual>0 ? ' + Kosten '+manual.toLocaleString('de-DE',{minimumFractionDigits:2})+' € = <strong>'+total.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>' : ' → Gesamt <strong>'+total.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>')) : '';
+    el.innerHTML = mainLine + warnHtml;
+  } else { el.innerHTML = ''; }
 }
 
 // ── KM AKTUALISIEREN ──
@@ -3433,7 +3486,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v50';
+var APP_VERSION = 'v53';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
