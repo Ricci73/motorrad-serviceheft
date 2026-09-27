@@ -551,7 +551,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v46</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v47</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -1853,13 +1853,16 @@ function importJSON(event) {
           if (target && (!target.torqueSpecs || !target.torqueSpecs.length)) { target.torqueSpecs = b.torqueSpecs.slice(); torqueAdded++; }
         });
         // Füllmengen (Öl/Kühlflüssigkeit) in vorhandene Motorräder ergänzen, ohne bestehende zu überschreiben
+        var fillAdded=0;
         data.bikes.forEach(function(b){
           if (b.oilFilter == null && b.coolant == null) return;
           var target = state.bikes.find(function(x){return x.id===b.id;})
             || state.bikes.find(function(x){return normStr(x.make)===normStr(b.make) && normStr(x.model)===normStr(b.model);});
           if (target) {
-            if (b.oilFilter != null && target.oilFilter == null) target.oilFilter = b.oilFilter;
-            if (b.coolant != null && target.coolant == null) target.coolant = b.coolant;
+            var changed=false;
+            if (b.oilFilter != null && target.oilFilter == null) { target.oilFilter = b.oilFilter; changed=true; }
+            if (b.coolant != null && target.coolant == null) { target.coolant = b.coolant; changed=true; }
+            if (changed) fillAdded++;
           }
         });
         // Neue Motorräder anlegen — nur wenn weder ID noch Marke+Modell schon existiert (kein Duplikat)
@@ -1887,6 +1890,7 @@ function importJSON(event) {
         var msgParts=[];
         if(added) msgParts.push(added+' Motorrad/Motorräder');
         if(torqueAdded) msgParts.push('Drehmomente für '+torqueAdded+' Motorrad/Motorräder');
+        if(fillAdded) msgParts.push('Füllmengen für '+fillAdded+' Motorrad/Motorräder');
         if(tdAdded) msgParts.push(tdAdded+' Trackday(s)');
         if(invAdded) msgParts.push(invAdded+' Material');
         showToast('✅ ' + (msgParts.length?msgParts.join(', ')+' hinzugefügt':'Nichts Neues zu importieren'));
@@ -3395,7 +3399,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v46';
+var APP_VERSION = 'v47';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
