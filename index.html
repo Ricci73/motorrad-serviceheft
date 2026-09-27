@@ -352,6 +352,11 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       </label>
     </div>
     <div class="form-group"><label>Notizen</label><textarea id="bNotes" placeholder="Sonderausstattung…"></textarea></div>
+    <div class="section-label" style="margin-top:8px">🛢️ FÜLLMENGEN</div>
+    <div class="form-row">
+      <div class="form-group"><label>Motoröl mit Filter (L)</label><input id="bOilFilter" type="number" inputmode="decimal" step="0.1" placeholder="z.B. 3,1" /></div>
+      <div class="form-group"><label>Kühlflüssigkeit (L)</label><input id="bCoolant" type="number" inputmode="decimal" step="0.05" placeholder="z.B. 2,5" /></div>
+    </div>
     <div class="section-label" style="margin-top:8px">🛞 REIFEN-SETUPS</div>
     <div id="bTyreSetups"></div>
     <button type="button" class="btn btn-secondary btn-sm" onclick="addTyreSetup()" style="width:100%;justify-content:center;margin-top:8px">+ Reifen-Setup</button>
@@ -425,6 +430,10 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
     <div class="form-group" id="logTorqueGroup" style="display:none">
       <label>🔧 Drehmomente (Nachschlag)</label>
       <div id="logTorqueRef" style="background:var(--surface2);border-radius:8px;padding:8px"></div>
+    </div>
+    <div class="form-group" id="logFillGroup" style="display:none">
+      <label>🛢️ Füllmengen (Nachschlag)</label>
+      <div id="logFillRef" style="background:var(--surface2);border-radius:8px;padding:8px"></div>
     </div>
     <div class="form-group">
       <label>Fotos / Belege</label>
@@ -542,7 +551,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v45</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v46</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -1060,6 +1069,8 @@ function openBikeModal(id) {
   document.getElementById('bHuLast').value = b?.huLast||'';
   document.getElementById('bNoHu').checked = b?.noHu||false;
   document.getElementById('bNotes').value = b?.notes||'';
+  document.getElementById('bOilFilter').value = b?.oilFilter||'';
+  document.getElementById('bCoolant').value = b?.coolant||'';
   bTyreSetupsEdit = b && b.tyreSetups ? JSON.parse(JSON.stringify(b.tyreSetups)) : [];
   bTorqueEdit = b && b.torqueSpecs ? JSON.parse(JSON.stringify(b.torqueSpecs)) : [];
   populateTyreDatalists();
@@ -1422,7 +1433,7 @@ function saveBike() {
   const make = document.getElementById('bMake').value.trim();
   const model = document.getElementById('bModel').value.trim();
   if (!make||!model) { showToast('Marke und Modell sind Pflichtfelder','error'); return; }
-  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', fin:document.getElementById('bFin').value.trim(), firstReg:document.getElementById('bFirstReg').value||null, huDate:document.getElementById('bHuDate').value||null, huLast:document.getElementById('bHuLast').value||null, noHu:document.getElementById('bNoHu').checked, notes:document.getElementById('bNotes').value.trim(), tyreSetups:bTyreSetupsEdit.slice(), torqueSpecs:bTorqueEdit.slice() };
+  const data = { make, model, year:+document.getElementById('bYear').value||null, km:+document.getElementById('bKm').value||0, plate:document.getElementById('bPlate').value.trim(), icon:document.getElementById('bIcon').value.trim()||'🏍️', fin:document.getElementById('bFin').value.trim(), firstReg:document.getElementById('bFirstReg').value||null, huDate:document.getElementById('bHuDate').value||null, huLast:document.getElementById('bHuLast').value||null, noHu:document.getElementById('bNoHu').checked, notes:document.getElementById('bNotes').value.trim(), oilFilter:+document.getElementById('bOilFilter').value||null, coolant:+document.getElementById('bCoolant').value||null, tyreSetups:bTyreSetupsEdit.slice(), torqueSpecs:bTorqueEdit.slice() };
   if (state.editingBikeId) {
     Object.assign(state.bikes.find(x=>x.id===state.editingBikeId), data);
   } else {
@@ -1465,6 +1476,15 @@ function openBikeDetail(id) {
 
   // HU status badge
   if (b.huDate || b.noHu) html = '<div style="margin-bottom:12px">' + huBadge(b) + '</div>' + html;
+
+  // Füllmengen
+  if (b.oilFilter || b.coolant) {
+    html += '<div class="section-label">🛢️ FÜLLMENGEN</div>';
+    html += '<div class="card" style="margin-bottom:12px">';
+    if (b.oilFilter) html += '<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.88rem"><span style="color:var(--text2)">Motoröl (mit Filter)</span><span style="text-align:right;font-weight:700;color:var(--accent)">'+(b.oilFilter).toLocaleString('de-DE')+' L</span></div>';
+    if (b.coolant) html += '<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.88rem"><span style="color:var(--text2)">Kühlflüssigkeit</span><span style="text-align:right;font-weight:700;color:var(--accent)">'+(b.coolant).toLocaleString('de-DE')+' L</span></div>';
+    html += '</div>';
+  }
 
   // Tyre setups
   if (b.tyreSetups && b.tyreSetups.length) {
@@ -1684,6 +1704,15 @@ function openLogModal() {
       tg.style.display = '';
     } else { tg.style.display = 'none'; }
   } else { tg.style.display = 'none'; }
+  // Füllmengen-Nachschlag
+  var fg = document.getElementById('logFillGroup');
+  if (bike && (bike.oilFilter || bike.coolant)) {
+    var fillHtml = '';
+    if (bike.oilFilter) fillHtml += '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 2px;border-bottom:1px solid var(--border);font-size:0.82rem"><span style="color:var(--text2)">Motoröl (mit Filter)</span><span style="font-weight:700;color:var(--accent);white-space:nowrap">'+(bike.oilFilter).toLocaleString('de-DE')+' L</span></div>';
+    if (bike.coolant) fillHtml += '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 2px;border-bottom:1px solid var(--border);font-size:0.82rem"><span style="color:var(--text2)">Kühlflüssigkeit</span><span style="font-weight:700;color:var(--accent);white-space:nowrap">'+(bike.coolant).toLocaleString('de-DE')+' L</span></div>';
+    document.getElementById('logFillRef').innerHTML = fillHtml;
+    fg.style.display = '';
+  } else { fg.style.display = 'none'; }
   document.getElementById('logModal').classList.add('open');
 }
 function closeLogModal() { document.getElementById('logModal').classList.remove('open'); }
@@ -1822,6 +1851,16 @@ function importJSON(event) {
           var target = state.bikes.find(function(x){return x.id===b.id;})
             || state.bikes.find(function(x){return normStr(x.make)===normStr(b.make) && normStr(x.model)===normStr(b.model);});
           if (target && (!target.torqueSpecs || !target.torqueSpecs.length)) { target.torqueSpecs = b.torqueSpecs.slice(); torqueAdded++; }
+        });
+        // Füllmengen (Öl/Kühlflüssigkeit) in vorhandene Motorräder ergänzen, ohne bestehende zu überschreiben
+        data.bikes.forEach(function(b){
+          if (b.oilFilter == null && b.coolant == null) return;
+          var target = state.bikes.find(function(x){return x.id===b.id;})
+            || state.bikes.find(function(x){return normStr(x.make)===normStr(b.make) && normStr(x.model)===normStr(b.model);});
+          if (target) {
+            if (b.oilFilter != null && target.oilFilter == null) target.oilFilter = b.oilFilter;
+            if (b.coolant != null && target.coolant == null) target.coolant = b.coolant;
+          }
         });
         // Neue Motorräder anlegen — nur wenn weder ID noch Marke+Modell schon existiert (kein Duplikat)
         data.bikes.forEach(b=>{
@@ -3356,7 +3395,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v45';
+var APP_VERSION = 'v46';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
