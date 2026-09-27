@@ -413,7 +413,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       </select>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Kosten (€)</label><input id="lCost" type="number" inputmode="decimal" step="0.01" placeholder="0.00" /></div>
+      <div class="form-group"><label>Kosten (€) <span style="font-weight:400;color:var(--text2);font-size:0.75rem">zzgl. Material/Reifen</span></label><input id="lCost" type="number" inputmode="decimal" step="0.01" placeholder="0.00" oninput="if(typeof updateLogCostPreview==='function')updateLogCostPreview()" /></div>
       <div class="form-group"><label>Werkstatt</label><input id="lWorkshop" placeholder="BMW Motorrad…" /></div>
     </div>
     <div class="form-group"><label>Notizen</label><textarea id="lNotes" placeholder="Verwendete Produkte…"></textarea></div>
@@ -422,6 +422,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <label>📦 Material aus Lager</label>
       <div id="logMaterialList"></div>
       <button type="button" class="btn btn-secondary btn-sm" onclick="addLogMaterial()" style="margin-top:8px;width:100%;justify-content:center">+ Material hinzufügen</button>
+      <div id="logCostPreview" style="margin-top:8px;font-size:0.85rem;color:var(--text2);text-align:right"></div>
     </div>
     <div class="form-group">
       <label>🛞 Reifen aus Vorrat (bei Reifenwechsel)</label>
@@ -553,7 +554,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v50</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v51</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -2468,6 +2469,7 @@ function renderLogTyres() {
   el.innerHTML = html;
   var selects = el.querySelectorAll('select');
   logTyres.forEach(function(m,i){ if(selects[i]) selects[i].value = m.tyreId; });
+  if (typeof updateLogCostPreview==='function') updateLogCostPreview();
 }
 function removeLogMaterial(i) {
   logMaterials.splice(i,1);
@@ -2516,6 +2518,35 @@ function renderLogMaterials() {
   // Fix selected values
   var selects = el.querySelectorAll('select');
   logMaterials.forEach(function(m,i) { if(selects[i]) selects[i].value = m.invId; });
+  updateLogCostPreview();
+}
+
+// Live-Vorschau: Material- + Reifenkosten + manuelle Kosten = Gesamt
+function updateLogCostPreview() {
+  var el = document.getElementById('logCostPreview');
+  if (!el) return;
+  var matCost = 0;
+  (logMaterials||[]).forEach(function(m){
+    if (!m.invId || !m.qty) return;
+    var inv = state.inventory.find(function(x){return x.id===m.invId;});
+    if (!inv) return;
+    var up = (inv.qty>0 && inv.price>0) ? (inv.price/inv.qty) : 0;
+    matCost += up * m.qty;
+  });
+  var tyreC = 0;
+  (typeof logTyres!=='undefined'?logTyres:[]).forEach(function(m){
+    if (!m.tyreId || !m.qty) return;
+    var t = (state.tyreStock||[]).find(function(x){return x.id===m.tyreId;});
+    if (!t || !t.batches) return;
+    var rem=m.qty; for (var bi=0;bi<t.batches.length&&rem>0;bi++){ var take=Math.min(t.batches[bi].qty||0,rem); tyreC+=(t.batches[bi].price||0)*take; rem-=take; }
+  });
+  var manual = +document.getElementById('lCost').value || 0;
+  var extra = matCost + tyreC;
+  if (extra > 0) {
+    var total = manual + extra;
+    el.innerHTML = 'Material/Reifen: <strong style="color:var(--accent)">'+extra.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>' +
+      (manual>0 ? ' + Kosten '+manual.toLocaleString('de-DE',{minimumFractionDigits:2})+' € = <strong>'+total.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>' : ' → Gesamt <strong>'+total.toLocaleString('de-DE',{minimumFractionDigits:2})+' €</strong>');
+  } else { el.innerHTML = ''; }
 }
 
 // ── KM AKTUALISIEREN ──
@@ -3433,7 +3464,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v50';
+var APP_VERSION = 'v51';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
