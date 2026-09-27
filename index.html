@@ -417,6 +417,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <div class="form-group"><label>Werkstatt</label><input id="lWorkshop" placeholder="BMW Motorrad…" /></div>
     </div>
     <div class="form-group"><label>Notizen</label><textarea id="lNotes" placeholder="Verwendete Produkte…"></textarea></div>
+    <div class="form-group"><label>🛢️ Ölsorte (optional, bei Ölwechsel)</label><input id="lOilType" list="oilTypeList" autocomplete="off" placeholder="z.B. Motul 7100 10W-40" /><datalist id="oilTypeList"></datalist></div>
     <div class="form-group">
       <label>📦 Material aus Lager</label>
       <div id="logMaterialList"></div>
@@ -482,6 +483,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <div class="form-group"><label>Werkstatt</label><input id="elWorkshop" /></div>
     </div>
     <div class="form-group"><label>Notizen</label><textarea id="elNotes"></textarea></div>
+    <div class="form-group"><label>🛢️ Ölsorte (optional)</label><input id="elOilType" list="oilTypeList" autocomplete="off" placeholder="z.B. Motul 7100 10W-40" /></div>
     <div class="form-group">
       <label>Fotos / Belege</label>
       <div style="display:flex;gap:8px">
@@ -551,7 +553,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v47</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v50</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -1478,11 +1480,13 @@ function openBikeDetail(id) {
   if (b.huDate || b.noHu) html = '<div style="margin-bottom:12px">' + huBadge(b) + '</div>' + html;
 
   // Füllmengen
-  if (b.oilFilter || b.coolant) {
+  var lastOilDetail = (state.logs[id]||[]).slice().sort(function(a,b){return new Date(b.date)-new Date(a.date);}).find(function(l){return l.oilType;});
+  if (b.oilFilter || b.coolant || lastOilDetail) {
     html += '<div class="section-label">🛢️ FÜLLMENGEN</div>';
     html += '<div class="card" style="margin-bottom:12px">';
     if (b.oilFilter) html += '<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.88rem"><span style="color:var(--text2)">Motoröl (mit Filter)</span><span style="text-align:right;font-weight:700;color:var(--accent)">'+(b.oilFilter).toLocaleString('de-DE')+' L</span></div>';
     if (b.coolant) html += '<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.88rem"><span style="color:var(--text2)">Kühlflüssigkeit</span><span style="text-align:right;font-weight:700;color:var(--accent)">'+(b.coolant).toLocaleString('de-DE')+' L</span></div>';
+    if (lastOilDetail) html += '<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:0.88rem"><span style="color:var(--text2)">Zuletzt eingefüllt</span><span style="text-align:right;font-weight:600">'+lastOilDetail.oilType+' <span style="font-weight:400;color:var(--text2)">('+new Date(lastOilDetail.date).toLocaleDateString('de-DE')+')</span></span></div>';
     html += '</div>';
   }
 
@@ -1661,8 +1665,16 @@ function renderLogbook() {
   const el=document.getElementById('logbookContent');
   if (!state.selectedBike) { el.innerHTML='<div class="empty-state"><div class="icon">🏍️</div><p>Wähle ein Motorrad.</p></div>'; return; }
   const logs=[...(state.logs[state.selectedBike]||[])].sort((a,b)=>new Date(b.date)-new Date(a.date));
-  if (!logs.length) { el.innerHTML=`<div class="empty-state"><div class="icon">📋</div><p>Noch keine Einträge.</p><button class="btn btn-primary" onclick="openLogModal()">+ Eintrag</button></div>`; return; }
-  el.innerHTML=logs.map(log=>{
+  const bike=state.bikes.find(b=>b.id===state.selectedBike);
+  // Info-Karte: Füllmengen + zuletzt eingefüllte Ölsorte
+  var lastOil = logs.find(function(l){return l.oilType;});
+  var infoParts = [];
+  if (bike && bike.oilFilter) infoParts.push('🛢️ Öl (mit Filter): <strong>'+(bike.oilFilter).toLocaleString('de-DE')+' L</strong>');
+  if (bike && bike.coolant) infoParts.push('❄️ Kühlflüssigkeit: <strong>'+(bike.coolant).toLocaleString('de-DE')+' L</strong>');
+  if (lastOil) infoParts.push('🔧 Zuletzt eingefüllt: <strong>'+lastOil.oilType+'</strong>');
+  var infoCard = infoParts.length ? '<div class="card" style="margin-bottom:12px;font-size:0.85rem;line-height:1.8">'+infoParts.join('<br>')+'</div>' : '';
+  if (!logs.length) { el.innerHTML = infoCard + `<div class="empty-state"><div class="icon">📋</div><p>Noch keine Einträge.</p><button class="btn btn-primary" onclick="openLogModal()">+ Eintrag</button></div>`; return; }
+  el.innerHTML = infoCard + logs.map(log=>{
     const d=new Date(log.date);
     const photos=(log.photos||[]).map(p=>`<img class="log-photo" src="${p}" onclick="openPhoto('${p}')" />`).join('');
     return `<div class="log-entry">
@@ -1671,6 +1683,7 @@ function renderLogbook() {
         <div class="log-type">${log.type}</div>
         <div class="log-km">📍 ${(log.km||0).toLocaleString('de-DE')} km${log.cost?` · 💶 ${log.cost.toLocaleString('de-DE',{minimumFractionDigits:2})} €`:''}</div>
         ${log.workshop?`<div style="color:var(--text2);font-size:0.8rem">🔧 ${log.workshop}</div>`:''}
+        ${log.oilType?`<div style="color:var(--text2);font-size:0.8rem">🛢️ ${log.oilType}</div>`:''}
         ${log.notes?`<div class="log-notes">${log.notes}</div>`:''}
         ${renderLogMats(log.materials)}
         ${(log.tyres&&log.tyres.length)?`<div style="margin-top:4px;font-size:0.78rem;color:var(--text2)">🛞 ${log.tyres.map(t=>`${t.name} ${t.groesse||''} (${t.position}, ${t.qty} Stk${t.dots?', '+t.dots:''}${t.cost?', '+t.cost.toLocaleString('de-DE',{minimumFractionDigits:2})+' €':''})`).join(', ')}</div>`:''}
@@ -1686,7 +1699,12 @@ function openLogModal() {
   const bike=state.bikes.find(b=>b.id===state.selectedBike);
   document.getElementById('lDate').value=new Date().toISOString().split('T')[0];
   document.getElementById('lKm').value=bike?.km||'';
-  ['lType','lCost','lWorkshop','lNotes'].forEach(id=>document.getElementById(id).value='');
+  ['lType','lCost','lWorkshop','lNotes','lOilType'].forEach(id=>document.getElementById(id).value='');
+  // Ölsorten-Autovervollständigung aus früheren Einträgen (alle Motorräder)
+  var oilTypes = [];
+  Object.keys(state.logs||{}).forEach(function(bid){ (state.logs[bid]||[]).forEach(function(l){ if(l.oilType && oilTypes.indexOf(l.oilType)===-1) oilTypes.push(l.oilType); }); });
+  oilTypes.sort();
+  document.getElementById('oilTypeList').innerHTML = oilTypes.map(function(o){ return '<option value="'+o.replace(/"/g,'&quot;')+'"></option>'; }).join('');
   document.getElementById('photoPreviews').innerHTML='';
   state.pendingPhotos=[];
   logMaterials=[];
@@ -1792,7 +1810,7 @@ function saveLog() {
     usedTyres.push({ name:t.modell, groesse:t.groesse, position:t.position, qty:res.taken, dots:res.dots.join(', '), cost:Math.round(res.cost*100)/100 });
   });
   const totalCost = (+document.getElementById('lCost').value||0) + materialCost + tyreCost;
-  const log={id:uid(),date,km:+km,type,cost:Math.round(totalCost*100)/100,workshop:document.getElementById('lWorkshop').value.trim(),notes:document.getElementById('lNotes').value.trim(),photos:[...state.pendingPhotos],materials:usedMaterials,tyres:usedTyres};
+  const log={id:uid(),date,km:+km,type,cost:Math.round(totalCost*100)/100,workshop:document.getElementById('lWorkshop').value.trim(),notes:document.getElementById('lNotes').value.trim(),oilType:document.getElementById('lOilType').value.trim(),photos:[...state.pendingPhotos],materials:usedMaterials,tyres:usedTyres};
   state.logs[state.selectedBike].unshift(log);
   const bike=state.bikes.find(b=>b.id===state.selectedBike);
   if (bike&&+km>(bike.km||0)) { bike.km=+km; bike.kmDate=date; if(!bike.kmHistory)bike.kmHistory=[]; bike.kmHistory.push({km:+km,date:date}); }
@@ -2455,6 +2473,16 @@ function removeLogMaterial(i) {
   logMaterials.splice(i,1);
   renderLogMaterials();
 }
+function onLogMaterialSelect(i, invId) {
+  logMaterials[i].invId = invId;
+  // Bei Öl-Material die Ölsorte automatisch ins Feld übernehmen (nur wenn leer)
+  var inv = state.inventory.find(function(x){return x.id===invId;});
+  if (inv && (inv.category||'').toLowerCase()==='öl') {
+    var oilField = document.getElementById('lOilType');
+    if (oilField && !oilField.value.trim()) oilField.value = inv.name;
+  }
+  renderLogMaterials();
+}
 function renderLogMaterials() {
   const el = document.getElementById('logMaterialList');
   if (!logMaterials.length) { el.innerHTML='<div style="color:var(--text2);font-size:0.8rem;padding:8px 0">Kein Material ausgewählt</div>'; return; }
@@ -2474,7 +2502,7 @@ function renderLogMaterials() {
     var unitLabel = inv ? inv.unit : '?';
     html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;background:var(--surface2);border-radius:8px;padding:10px">';
     html += '<div style="flex:1;min-width:0">';
-    html += '<select onchange="logMaterials['+i+'].invId=this.value;renderLogMaterials()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:0.85rem;min-height:40px">';
+    html += '<select onchange="onLogMaterialSelect('+i+',this.value)" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:0.85rem;min-height:40px">';
     html += '<option value="">— Material wählen —</option>'+opts+'</select>';
     html += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center">';
     html += '<input type="number" inputmode="decimal" step="0.1" placeholder="Menge" value="'+(m.qty||'')+'" onchange="logMaterials['+i+'].qty=+this.value;renderLogMaterials()" style="width:80px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:0.85rem;min-height:36px" />';
@@ -2636,6 +2664,11 @@ function openEditLogModal(id) {
   document.getElementById('elCost').value = log.cost||'';
   document.getElementById('elWorkshop').value = log.workshop||'';
   document.getElementById('elNotes').value = log.notes||'';
+  document.getElementById('elOilType').value = log.oilType||'';
+  var oilTypes = [];
+  Object.keys(state.logs||{}).forEach(function(bid){ (state.logs[bid]||[]).forEach(function(l){ if(l.oilType && oilTypes.indexOf(l.oilType)===-1) oilTypes.push(l.oilType); }); });
+  oilTypes.sort();
+  document.getElementById('oilTypeList').innerHTML = oilTypes.map(function(o){ return '<option value="'+o.replace(/"/g,'&quot;')+'"></option>'; }).join('');
   renderEditPhotoPreviews();
   document.getElementById('editLogModal').classList.add('open');
 }
@@ -2666,6 +2699,7 @@ function saveEditLog() {
   log.cost = +document.getElementById('elCost').value || 0;
   log.workshop = document.getElementById('elWorkshop').value.trim();
   log.notes = document.getElementById('elNotes').value.trim();
+  log.oilType = document.getElementById('elOilType').value.trim();
   log.photos = [...editPendingPhotos];
   save(); closeEditLogModal(); renderStats(); renderLogbook(); showToast('✅ Eintrag aktualisiert');
 }
@@ -3399,7 +3433,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v47';
+var APP_VERSION = 'v50';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
