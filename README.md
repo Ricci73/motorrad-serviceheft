@@ -16,7 +16,7 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - "Kein TÜV"-Flag für Rennstrecken-Motorräder
 - **Detailansicht** (ℹ️) — alle Infos, Reifen-Setups und Statistik eines Motorrads ansehen ohne Bearbeiten-Modus
 - **Drehmomente** pro Motorrad — editierbare Liste (Schraubstelle + Nm + Notiz), z.B. fürs Reifenwechseln; angezeigt in der Detailansicht und als Nachschlag-Karte beim Reifenwechsel-Service
-- **Füllmengen** pro Motorrad — Motoröl (mit Filterwechsel) und Kühlflüssigkeit in Litern; angezeigt in der Detailansicht und als Nachschlag-Karte beim Service (z.B. Ölwechsel)
+- **Füllmengen** pro Motorrad — Motoröl (mit Filterwechsel) und Kühlflüssigkeit in Litern; angezeigt in der Detailansicht (inkl. zuletzt eingefüllter Ölsorte) und als Nachschlag-Karte beim Service (z.B. Ölwechsel)
 
 ### 🛞 Reifen
 - Reifen-Setups pro Motorrad (Straße = nur Kaltdruck, Rennstrecke = kalt + warm)
@@ -37,6 +37,8 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 
 ### 📋 Serviceheft
 - Einträge mit Datum, km, Kosten, Werkstatt, Notizen
+- **Ölsorte** pro Eintrag (Autovervollständigung; wird bei Wahl eines Öl-Materials aus dem Lager automatisch übernommen)
+- **Info-Karte** oben: Füllmengen (Öl mit Filter, Kühlflüssigkeit) und zuletzt eingefüllte Ölsorte
 - Fotos & Belege direkt mit der Kamera aufnehmen oder aus der Galerie
 - Einträge nachträglich bearbeiten
 - Automatische Foto-Komprimierung
