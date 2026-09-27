@@ -553,7 +553,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v48</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v49</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -2471,6 +2471,16 @@ function removeLogMaterial(i) {
   logMaterials.splice(i,1);
   renderLogMaterials();
 }
+function onLogMaterialSelect(i, invId) {
+  logMaterials[i].invId = invId;
+  // Bei Öl-Material die Ölsorte automatisch ins Feld übernehmen (nur wenn leer)
+  var inv = state.inventory.find(function(x){return x.id===invId;});
+  if (inv && (inv.category||'').toLowerCase()==='öl') {
+    var oilField = document.getElementById('lOilType');
+    if (oilField && !oilField.value.trim()) oilField.value = inv.name;
+  }
+  renderLogMaterials();
+}
 function renderLogMaterials() {
   const el = document.getElementById('logMaterialList');
   if (!logMaterials.length) { el.innerHTML='<div style="color:var(--text2);font-size:0.8rem;padding:8px 0">Kein Material ausgewählt</div>'; return; }
@@ -2490,7 +2500,7 @@ function renderLogMaterials() {
     var unitLabel = inv ? inv.unit : '?';
     html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;background:var(--surface2);border-radius:8px;padding:10px">';
     html += '<div style="flex:1;min-width:0">';
-    html += '<select onchange="logMaterials['+i+'].invId=this.value;renderLogMaterials()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:0.85rem;min-height:40px">';
+    html += '<select onchange="onLogMaterialSelect('+i+',this.value)" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:0.85rem;min-height:40px">';
     html += '<option value="">— Material wählen —</option>'+opts+'</select>';
     html += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center">';
     html += '<input type="number" inputmode="decimal" step="0.1" placeholder="Menge" value="'+(m.qty||'')+'" onchange="logMaterials['+i+'].qty=+this.value;renderLogMaterials()" style="width:80px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:0.85rem;min-height:36px" />';
@@ -3421,7 +3431,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v48';
+var APP_VERSION = 'v49';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
