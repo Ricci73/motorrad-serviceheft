@@ -45,7 +45,8 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 
 ### 📦 Materiallager
 - Material anlegen mit Kaufmenge, Preis, Bestand, Mindestbestand, Motorrad-Zuordnung
-- Beim Service: Material wählen → Kosten automatisch, Bestand reduziert
+- Beim Service: Material wählen → Kosten automatisch (Live-Vorschau der Material-/Reifenkosten vor dem Speichern), Bestand reduziert
+- **Fester Stückpreis pro Artikel** (aus Preis ÷ Kaufmenge, beim Nachkaufen gewichteter Durchschnitt) — stabil unabhängig vom Bestand; Hinweis „⚠️ kein Preis", wenn ein gewähltes Material keinen Preis hat
 - **Nachkaufen** — Bestand auffüllen, Stückpreis als gewichteter Durchschnitt
 - **Verbrauchshistorie** — jede Anlage/Nachkauf/Verbrauch mit Datum
 - **Niedrigbestand-Warnung** bei Unterschreitung des Mindestbestands
