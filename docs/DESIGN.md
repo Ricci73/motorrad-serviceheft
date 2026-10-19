@@ -529,21 +529,17 @@ stateDiagram-v2
     Gebucht --> Storniert : absagen
     Geplant --> Erledigt : direkt abhaken
 
-    state Erledigt {
-        note as N1
-            Detail-View read-only:
-            Edit- und Checklist-Buttons ausgeblendet
-        end note
-    }
-    state Storniert {
-        note as N2
-            Detail-View read-only:
-            Edit- und Checklist-Buttons ausgeblendet
-        end note
-    }
-
     Erledigt --> [*]
     Storniert --> [*]
+
+    note right of Erledigt
+        Detail-Ansicht read-only,
+        Edit und Checkliste ausgeblendet
+    end note
+    note right of Storniert
+        Detail-Ansicht read-only,
+        Edit und Checkliste ausgeblendet
+    end note
 ```
 
 ---
