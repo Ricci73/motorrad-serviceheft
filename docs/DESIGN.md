@@ -390,39 +390,39 @@ sequenceDiagram
 
     User->>UI: Material wählen (onLogMaterialSelect)
     UI->>invUnitPrice: Stückpreis für inv
-    invUnitPrice-->>UI: unitPrice (bzw. 0)
+    invUnitPrice-->>UI: unitPrice oder 0
     User->>UI: Reifen aus Vorrat wählen (logTyres)
     UI->>UI: updateLogCostPreview()
-    Note over UI: Live-Vorschau: matCost + tyreCost + manuelle Kosten<br/>⚠️ "kein Preis" wenn Stückpreis 0
+    Note over UI: Live-Vorschau Material plus Reifen plus manuelle Kosten
 
-    User->>UI: 💾 Speichern
+    User->>UI: Speichern
     UI->>saveLog: saveLog()
     saveLog->>saveLog: Pflichtfelder prüfen (date, km, type)
     alt Felder fehlen
-        saveLog-->>User: Toast "Datum, km und Wartungsart sind Pflicht"
+        saveLog-->>User: Toast Pflichtfelder fehlen
     else gültig
         loop je gewähltes Material
             saveLog->>invUnitPrice: invUnitPrice(inv)
             invUnitPrice-->>saveLog: unitPrice
-            saveLog->>saveLog: materialCost erhöhen (unitPrice mal qty)
-            saveLog->>State: inv.stock = max(0, stock - qty)
-            saveLog->>State: inv.history.push({type:'Verbrauch', qty, date, ref})
+            saveLog->>saveLog: materialCost erhöhen
+            saveLog->>State: inv.stock reduzieren, nicht unter null
+            saveLog->>State: inv.history Verbrauch anhängen
         end
         loop je gewählter Reifen
             saveLog->>tyreConsume: tyreConsume(t, qty)
-            Note over tyreConsume: FIFO über t.batches (älteste DOT zuerst)
+            Note over tyreConsume: FIFO über Chargen, älteste DOT zuerst
             tyreConsume->>State: Chargenmenge reduzieren, leere Chargen entfernen
-            tyreConsume-->>saveLog: {taken, cost, dots}
-            saveLog->>saveLog: tyreCost erhöhen (um cost)
+            tyreConsume-->>saveLog: taken, cost, dots
+            saveLog->>saveLog: tyreCost erhöhen
         end
-        saveLog->>saveLog: totalCost = manuelleKosten + materialCost + tyreCost
-        saveLog->>State: log{...} erzeugen, logs[bike].unshift(log)
-        saveLog->>State: bike.km / kmDate / kmHistory aktualisieren (falls km höher)
+        saveLog->>saveLog: totalCost gleich manuell plus Material plus Reifen
+        saveLog->>State: log erzeugen und voranstellen
+        saveLog->>State: bike km, kmDate, kmHistory aktualisieren
         saveLog->>saveLog: save()
-        saveLog->>IDB: dbSave() (primär)
-        saveLog->>LS: localStorage.setItem (Fallback)
-        saveLog->>UI: closeLogModal(); renderStats(); renderLogbook()
-        saveLog-->>User: Toast "✅ Eintrag gespeichert (+X € Material/Reifen)"
+        saveLog->>IDB: dbSave als primär
+        saveLog->>LS: localStorage als Fallback
+        saveLog->>UI: Modal schliessen, Stats und Logbuch neu rendern
+        saveLog-->>User: Toast Eintrag gespeichert
     end
 ```
 
@@ -438,47 +438,47 @@ sequenceDiagram
     participant IDB as IndexedDB
     participant LS as localStorage
 
-    User->>UI: Datei wählen (Modus = Merge)
+    User->>UI: Datei wählen (Modus Merge)
     UI->>importJSON: importJSON(event)
-    importJSON->>importJSON: FileReader.readAsText → JSON.parse
-    alt data.bikes fehlt / kein Array
-        importJSON-->>User: Toast "Ungültige Datei"
+    importJSON->>importJSON: Datei lesen und JSON parsen
+    alt keine gültigen bikes
+        importJSON-->>User: Toast Ungültige Datei
     else Merge-Modus
-        Note over importJSON,normStr: normStr(s) = lowercase, ohne Leer-/Bindestriche
+        Note over importJSON,normStr: normStr vergleicht klein ohne Leer und Bindestrich
 
         loop je Bike mit torqueSpecs
-            importJSON->>normStr: Ziel-Bike per id, sonst make+model
-            importJSON->>State: torqueSpecs nur ergänzen wenn Ziel keine hat (torqueAdded++)
+            importJSON->>normStr: Ziel-Bike per id, sonst Marke und Modell
+            importJSON->>State: torqueSpecs nur ergänzen wenn Ziel keine hat
         end
 
-        loop je Bike mit oilFilter/coolant
-            importJSON->>normStr: Ziel-Bike per id, sonst make+model
-            importJSON->>State: Füllmengen nur in leere Felder setzen (fillAdded++)
+        loop je Bike mit Füllmengen
+            importJSON->>normStr: Ziel-Bike per id, sonst Marke und Modell
+            importJSON->>State: Füllmengen nur in leere Felder setzen
         end
 
         loop je Bike
-            importJSON->>normStr: exists? per id ODER make+model
+            importJSON->>normStr: existiert per id oder Marke und Modell
             alt nicht vorhanden
-                importJSON->>State: bikes.push(b); maintenance/logs anlegen (added++)
+                importJSON->>State: Bike anlegen, maintenance und logs anlegen
             end
         end
 
         loop je Trackday
-            importJSON->>State: push wenn id fehlt (tdAdded++)
+            importJSON->>State: hinzufügen wenn id fehlt
         end
         loop je Inventory-Item
-            importJSON->>State: push wenn id fehlt (invAdded++)
+            importJSON->>State: hinzufügen wenn id fehlt
         end
         loop je tyreStock
-            importJSON->>State: push wenn id fehlt
+            importJSON->>State: hinzufügen wenn id fehlt
         end
-        importJSON->>State: masterChecklist / tyreTable nur wenn noch leer
+        importJSON->>State: masterChecklist und tyreTable nur wenn noch leer
 
-        importJSON-->>User: Toast "✅ ... hinzugefügt" (bzw. "Nichts Neues")
+        importJSON-->>User: Toast hinzugefügt oder nichts Neues
         importJSON->>importJSON: save()
-        importJSON->>IDB: dbSave()
-        importJSON->>LS: localStorage.setItem
-        importJSON->>UI: renderBikes / renderTrackdays / renderInventory ...
+        importJSON->>IDB: dbSave
+        importJSON->>LS: localStorage schreiben
+        importJSON->>UI: Ansichten neu rendern
     end
 ```
 
@@ -491,30 +491,30 @@ sequenceDiagram
     participant SW as ServiceWorker (sw.js)
     participant Banner as UpdateBanner
 
-    Page->>SW: navigator.serviceWorker.register('./sw.js')
-    SW-->>Page: reg (_swReg = reg)
+    Page->>SW: Service Worker registrieren
+    SW-->>Page: Registrierung (reg gemerkt)
 
-    alt reg.waiting && controller vorhanden
-        Page->>Banner: showUpdateBanner()
+    alt wartender SW und Controller vorhanden
+        Page->>Banner: Update-Banner zeigen
     end
 
     Note over SW: Neue Version deployed
-    SW->>Page: updatefound (reg.installing = nw)
-    Page->>Page: nw.addEventListener('statechange')
-    alt nw.state === 'installed' && controller vorhanden
-        Page->>Banner: showUpdateBanner() — "🔄 Neue Version verfügbar"
+    SW->>Page: updatefound, neuer SW installiert sich
+    Page->>Page: statechange beobachten
+    alt installiert und Controller vorhanden
+        Page->>Banner: Update-Banner Neue Version verfügbar
     end
 
-    User->>Banner: Klick "Jetzt laden"
+    User->>Banner: Klick Jetzt laden
     Banner->>Page: applyUpdate()
-    alt _swReg.waiting vorhanden
-        Page->>SW: reg.waiting.postMessage({type:'SKIP_WAITING'})
-        SW->>SW: skipWaiting() → aktiviert, übernimmt Kontrolle
+    alt wartender SW vorhanden
+        Page->>SW: Nachricht SKIP_WAITING senden
+        SW->>SW: skipWaiting, übernimmt Kontrolle
         SW->>Page: controllerchange
-        Page->>Page: Reload-Flag prüfen (nur einmal)
-        Page->>Page: location.reload()
-    else kein waiting-SW
-        Page->>Page: location.reload()
+        Page->>Page: Reload-Flag prüfen, nur einmal
+        Page->>Page: Seite neu laden
+    else kein wartender SW
+        Page->>Page: Seite neu laden
     end
 ```
 
