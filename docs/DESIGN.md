@@ -393,7 +393,7 @@ sequenceDiagram
     invUnitPrice-->>UI: unitPrice (bzw. 0)
     User->>UI: Reifen aus Vorrat wählen (logTyres)
     UI->>UI: updateLogCostPreview()
-    Note over UI: Live-Vorschau: matCost + tyreCost + manuelle Kosten<br/>⚠️ "kein Preis" bei unitPrice<=0
+    Note over UI: Live-Vorschau: matCost + tyreCost + manuelle Kosten<br/>⚠️ "kein Preis" wenn Stückpreis 0
 
     User->>UI: 💾 Speichern
     UI->>saveLog: saveLog()
@@ -404,16 +404,16 @@ sequenceDiagram
         loop je gewähltes Material
             saveLog->>invUnitPrice: invUnitPrice(inv)
             invUnitPrice-->>saveLog: unitPrice
-            saveLog->>saveLog: materialCost += unitPrice * qty
+            saveLog->>saveLog: materialCost erhöhen (unitPrice mal qty)
             saveLog->>State: inv.stock = max(0, stock - qty)
             saveLog->>State: inv.history.push({type:'Verbrauch', qty, date, ref})
         end
         loop je gewählter Reifen
             saveLog->>tyreConsume: tyreConsume(t, qty)
             Note over tyreConsume: FIFO über t.batches (älteste DOT zuerst)
-            tyreConsume->>State: batch.qty -= take; leere Chargen entfernen
+            tyreConsume->>State: Chargenmenge reduzieren, leere Chargen entfernen
             tyreConsume-->>saveLog: {taken, cost, dots}
-            saveLog->>saveLog: tyreCost += cost
+            saveLog->>saveLog: tyreCost erhöhen (um cost)
         end
         saveLog->>saveLog: totalCost = manuelleKosten + materialCost + tyreCost
         saveLog->>State: log{...} erzeugen, logs[bike].unshift(log)
@@ -511,7 +511,7 @@ sequenceDiagram
         Page->>SW: reg.waiting.postMessage({type:'SKIP_WAITING'})
         SW->>SW: skipWaiting() → aktiviert, übernimmt Kontrolle
         SW->>Page: controllerchange
-        Page->>Page: _reloaded prüfen (nur einmal)
+        Page->>Page: Reload-Flag prüfen (nur einmal)
         Page->>Page: location.reload()
     else kein waiting-SW
         Page->>Page: location.reload()
