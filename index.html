@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="BikerDesk" />
 <meta name="theme-color" content="#0f0f13" />
 <link rel="manifest" href="manifest.json" />
+<script src="pouchdb.min.js"></script>
 <title>🏍️ BikerDesk</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -554,7 +555,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v53</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v54</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -916,9 +917,43 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 let state = { bikes:[], maintenance:{}, logs:{}, inventory:[], trackdays:[], masterChecklist:null, tyreTable:null, tyreStock:[], tyreWidthThreshold:160, selectedBike:null, editingBikeId:null, editingMaintenanceId:null, pendingPhotos:[], currentPage:'bikes' };
 
 function save() {
-  // Dual-write: IndexedDB (primary) + localStorage (fallback)
+  // Primär: PouchDB (lokal; synct optional zu CouchDB wenn aktiviert).
+  // Weiterhin Spiegel in IndexedDB + localStorage als Fallback/Abwärtskompatibilität.
+  pouchSave();
   dbSave();
-  try { localStorage.setItem('moto_serviceheft', JSON.stringify({ bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist, tyreTable:state.tyreTable, tyreStock:state.tyreStock, tyreWidthThreshold:state.tyreWidthThreshold })); } catch(e) {}
+  try { localStorage.setItem('moto_serviceheft', JSON.stringify(statePayload())); } catch(e) {}
+}
+
+// Zentrale Nutzlast (ein Dokument = kompletter App-State)
+function statePayload() {
+  return { bikes:state.bikes, maintenance:state.maintenance, logs:state.logs, inventory:state.inventory, trackdays:state.trackdays, masterChecklist:state.masterChecklist, tyreTable:state.tyreTable, tyreStock:state.tyreStock, tyreWidthThreshold:state.tyreWidthThreshold };
+}
+function applyPayload(d) {
+  if (!d) return;
+  state.bikes = d.bikes||[]; state.maintenance = d.maintenance||{}; state.logs = d.logs||{}; state.inventory = d.inventory||[]; state.trackdays = d.trackdays||[]; state.masterChecklist = d.masterChecklist||null; state.tyreTable = d.tyreTable||null; state.tyreStock = d.tyreStock||[]; state.tyreWidthThreshold = d.tyreWidthThreshold||160;
+}
+
+// ── PouchDB (lokaler Primärspeicher, Vorbereitung für optionalen Sync) ──
+var POUCH_DOC_ID = 'bikerdesk-state';
+var _pouch = null;
+function pouchDB() {
+  if (_pouch) return _pouch;
+  if (typeof PouchDB === 'undefined') return null;
+  try { _pouch = new PouchDB('bikerdesk'); } catch(e) { _pouch = null; }
+  return _pouch;
+}
+function pouchSave() {
+  var db = pouchDB();
+  if (!db) return;
+  db.get(POUCH_DOC_ID).catch(function(){ return { _id: POUCH_DOC_ID }; }).then(function(doc){
+    doc.data = statePayload();
+    return db.put(doc);
+  }).catch(function(e){ console.warn('pouchSave', e); });
+}
+function pouchLoad() {
+  var db = pouchDB();
+  if (!db) return Promise.resolve(null);
+  return db.get(POUCH_DOC_ID).then(function(doc){ return doc.data || null; }).catch(function(){ return null; });
 }
 
 // ── IndexedDB ──
@@ -960,24 +995,34 @@ function dbLoad() {
 }
 
 async function load() {
-  // Try IndexedDB first
+  // Schritt 1 PouchDB (neuer Primärspeicher)
   try {
-    let data = await dbLoad();
-    if (data && data.bikes && data.bikes.length) {
-      state.bikes = data.bikes; state.maintenance = data.maintenance||{}; state.logs = data.logs||{}; state.inventory = data.inventory||[]; state.trackdays = data.trackdays||[]; state.masterChecklist = data.masterChecklist||null; state.tyreTable = data.tyreTable||null; state.tyreStock = data.tyreStock||[]; state.tyreWidthThreshold = data.tyreWidthThreshold||160;
+    const pd = await pouchLoad();
+    if (pd && pd.bikes && pd.bikes.length) {
+      applyPayload(pd);
       migrateInventoryUnitPrice();
       state.selectedBike = state.bikes[0]?.id || null;
       return;
     }
   } catch(e) {}
-  // Fallback: localStorage
+  // Schritt 2 IndexedDB (Altbestand) -> übernehmen und nach PouchDB migrieren
+  try {
+    let data = await dbLoad();
+    if (data && data.bikes && data.bikes.length) {
+      applyPayload(data);
+      migrateInventoryUnitPrice();
+      state.selectedBike = state.bikes[0]?.id || null;
+      pouchSave(); // einmalige Migration nach PouchDB
+      return;
+    }
+  } catch(e) {}
+  // Schritt 3 localStorage (ältester Fallback) -> übernehmen und migrieren
   try {
     const d = localStorage.getItem('moto_serviceheft');
     if (d) {
-      const p = JSON.parse(d);
-      state.bikes = p.bikes||[]; state.maintenance = p.maintenance||{}; state.logs = p.logs||{}; state.inventory = p.inventory||[]; state.trackdays = p.trackdays||[]; state.masterChecklist = p.masterChecklist||null; state.tyreTable = p.tyreTable||null; state.tyreStock = p.tyreStock||[]; state.tyreWidthThreshold = p.tyreWidthThreshold||160;
+      applyPayload(JSON.parse(d));
       migrateInventoryUnitPrice();
-      dbSave(); // migrate to IndexedDB
+      pouchSave(); dbSave(); // Migration in neue Speicher
     }
   } catch(e) {}
   if (!state.bikes.length) addSampleData();
@@ -3486,7 +3531,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v53';
+var APP_VERSION = 'v54';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
