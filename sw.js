@@ -1,5 +1,5 @@
-const CACHE_NAME = "bikerdesk-v45";
-const ASSETS = ["./", "./index.html", "./manifest.json"];
+const CACHE_NAME = "bikerdesk-v54";
+const ASSETS = ["./", "./index.html", "./manifest.json", "./pouchdb.min.js"];
 
 self.addEventListener("install", function(e) {
   e.waitUntil(
