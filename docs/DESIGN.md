@@ -344,9 +344,14 @@ graph TB
         subgraph Persistence["Persistenz-Layer"]
             IDB["IndexedDB (primaer)<br/>DB 'MotoServiceheftDB' v1<br/>Store 'appdata' key 'state'<br/>dbOpen/dbSave/dbLoad"]
             LS["localStorage (Fallback + Migration)<br/>key 'moto_serviceheft'<br/>+ 'moto_last_backup'"]
+            Pouch["PouchDB (geplant, REQ-SYNC-02)<br/>lokale DB, ersetzt direkten IndexedDB-Zugriff<br/>Dokument _id bikerdesk-state"]
         end
 
         SW["Service Worker (./sw.js)<br/>Cache + Offline<br/>Update-Banner bei neuer Version"]
+    end
+
+    subgraph SelfHost["Eigene Infrastruktur (geplant, optional)"]
+        Couch["CouchDB (Proxmox-LXC, REQ-SYNC-01/06)<br/>selbst gehostet, Zugriff via Tailscale/HTTPS"]
     end
 
     GH -->|laedt App-Shell| UI
@@ -365,7 +370,16 @@ graph TB
 
     State -.->|load: IDB zuerst| IDB
     State -.->|Fallback + einmalige Migration| LS
+
+    SaveFn -.->|geplant: statt IDB| Pouch
+    Pouch -.->|optionale Live-Replikation<br/>nur wenn Sync aktiv REQ-SYNC-03/04| Couch
 ```
+
+> Hinweis zum Sync (geplant): PouchDB ersetzt im Persistenz-Layer den direkten
+> IndexedDB-Zugriff und bleibt ohne konfigurierten Server rein lokal (Verhalten wie
+> heute). Ist in den Einstellungen ein CouchDB-Ziel hinterlegt, repliziert PouchDB
+> zusätzlich bidirektional dorthin. GitHub Pages liefert weiterhin nur die App-Shell
+> aus; CouchDB läuft in der eigenen Infrastruktur und sieht die Daten.
 
 > Hinweis: `sw.js` wird per `navigator.serviceWorker.register('./sw.js')` eingebunden,
 > liegt aber nicht im selben Repo-Verzeichnis wie `index.html` — die Cache-Details sind
@@ -544,7 +558,49 @@ stateDiagram-v2
 
 ---
 
-## Anmerkungen
+### 3.5 Sync-Replikation (optional, geplant — REQ-SYNC)
+
+> Nur aktiv, wenn in den Einstellungen ein CouchDB-Ziel hinterlegt ist. Ohne
+> Konfiguration bleibt die App rein lokal (PouchDB ohne Replikation).
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as UI (Einstellungen)
+    participant Pouch as PouchDB (lokal)
+    participant Sync as Sync-Handler
+    participant Couch as CouchDB (self-hosted)
+
+    Note over Pouch: Standard lokal-only, Verhalten wie heute
+
+    User->>UI: Sync aktivieren, URL und Zugangsdaten eingeben
+    UI->>Sync: Konfiguration speichern und Sync starten
+    Sync->>Pouch: live Replikation einrichten
+    Sync->>Couch: Verbindung aufbauen (via Tailscale oder HTTPS)
+    alt Erstabgleich
+        Pouch->>Couch: lokalen Stand hochladen
+        Couch-->>Pouch: Remote-Stand herunterladen
+        Sync->>UI: Status synchron anzeigen
+    end
+
+    loop laufender Betrieb
+        UI->>Pouch: save schreibt Dokument bikerdesk-state
+        Pouch->>Couch: Änderung replizieren
+        Couch-->>Pouch: Änderungen anderer Geräte empfangen
+        Pouch->>UI: Ansicht aktualisieren
+    end
+
+    alt offline
+        Pouch->>Pouch: lokal weiterarbeiten
+        Sync->>UI: Status offline anzeigen
+        Note over Sync: automatischer Wiederanlauf bei Verbindung
+    end
+
+    alt Konflikt bei parallelem Edit
+        Couch-->>Pouch: konkurrierende Revision
+        Sync->>UI: last-write-wins, Hinweis anzeigen
+    end
+```
 
 - Die Feldlisten stammen aus den `save*`-Funktionen (nicht nur aus den Formularen),
   inkl. abgeleiteter Felder (`kmDate`, `unitPrice`).
