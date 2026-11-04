@@ -548,6 +548,24 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       📂 JSON-Datei importieren
     </button>
     <input type="file" id="importInput" accept=".json,application/json" style="display:none" onchange="importJSON(event)" />
+
+    <div class="section-label" style="margin-top:20px">☁️ Sync (optional)</div>
+    <div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px;font-size:0.8rem;color:var(--text2)">
+      Geräteübergreifender Abgleich über deinen eigenen <strong style="color:var(--text)">CouchDB</strong>-Server. Ohne Eingabe bleibt die App rein lokal.
+    </div>
+    <div class="form-group"><label>Server-URL</label><input id="syncUrl" placeholder="https://host:6984/bikerdesk" autocomplete="off" /></div>
+    <div class="form-row">
+      <div class="form-group"><label>Benutzer</label><input id="syncUser" autocomplete="off" /></div>
+      <div class="form-group"><label>Passwort</label><input id="syncPass" type="password" autocomplete="off" /></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem;min-height:44px">
+      <input type="checkbox" id="syncEnabled" style="width:18px;height:18px;accent-color:var(--accent)" /> Sync aktiv
+    </label>
+    <div style="display:flex;gap:8px;align-items:center;margin:6px 0 12px">
+      <button class="btn btn-primary btn-sm" onclick="saveSyncSettings()">💾 Sync speichern</button>
+      <span id="syncStatus" style="font-size:0.82rem;color:var(--text2)"></span>
+    </div>
+
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeDataModal()">Schließen</button></div>
   </div>
 </div>
@@ -555,7 +573,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v54</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v56</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -942,18 +960,103 @@ function pouchDB() {
   try { _pouch = new PouchDB('bikerdesk'); } catch(e) { _pouch = null; }
   return _pouch;
 }
+var _pouchQueue = Promise.resolve();
+var _pouchSaving = false;
+var _lastPouchRev = null;
 function pouchSave() {
   var db = pouchDB();
   if (!db) return;
-  db.get(POUCH_DOC_ID).catch(function(){ return { _id: POUCH_DOC_ID }; }).then(function(doc){
-    doc.data = statePayload();
-    return db.put(doc);
-  }).catch(function(e){ console.warn('pouchSave', e); });
+  // Speicherungen strikt nacheinander (verhindert 409-Konflikte bei schnellen save()-Folgen)
+  _pouchQueue = _pouchQueue.then(function(){
+    _pouchSaving = true;
+    return db.get(POUCH_DOC_ID).catch(function(){ return { _id: POUCH_DOC_ID }; }).then(function(doc){
+      doc.data = statePayload(); // immer den aktuellsten Stand schreiben
+      return db.put(doc);
+    }).then(function(res){ _lastPouchRev = res.rev; });
+  }).catch(function(e){ console.warn('pouchSave', e); }).then(function(){ _pouchSaving = false; });
+}
+// Überwacht den lokalen Speicher: von aussen eingetroffene Änderungen (Sync) sofort anzeigen
+var _pouchWatch = null;
+function startLocalWatch() {
+  var db = pouchDB();
+  if (!db || _pouchWatch) return;
+  _pouchWatch = db.changes({ since: 'now', live: true, include_docs: true, doc_ids: [POUCH_DOC_ID] })
+    .on('change', function(ch){
+      if (_pouchSaving || !ch.doc || ch.doc._rev === _lastPouchRev || !ch.doc.data) return; // eigene Änderung
+      applyPayload(ch.doc.data);
+      migrateInventoryUnitPrice();
+      _lastPouchRev = ch.doc._rev;
+      rerenderAll();
+    })
+    .on('error', function(e){ console.warn('pouchWatch', e); _pouchWatch = null; });
 }
 function pouchLoad() {
   var db = pouchDB();
   if (!db) return Promise.resolve(null);
   return db.get(POUCH_DOC_ID).then(function(doc){ return doc.data || null; }).catch(function(){ return null; });
+}
+
+// ── OPTIONALER SYNC (CouchDB) — REQ-SYNC-01/03/04/05 ──
+var SYNC_CFG_KEY = 'bikerdesk_sync';
+var _syncHandler = null;
+function getSyncCfg() {
+  try { return JSON.parse(localStorage.getItem(SYNC_CFG_KEY) || '{}'); } catch(e) { return {}; }
+}
+function setSyncStatus(txt, color) {
+  var el = document.getElementById('syncStatus');
+  if (el) { el.textContent = txt; el.style.color = color || 'var(--text2)'; }
+}
+// Baut die Remote-URL inkl. Zugangsdaten (user:pass@host)
+function syncRemoteUrl(cfg) {
+  if (!cfg.url) return null;
+  if (!cfg.user) return cfg.url;
+  try {
+    var u = new URL(cfg.url);
+    u.username = encodeURIComponent(cfg.user);
+    u.password = encodeURIComponent(cfg.pass || '');
+    return u.toString();
+  } catch(e) { return cfg.url; }
+}
+function startSync() {
+  stopSync();
+  var cfg = getSyncCfg();
+  if (!cfg.enabled || !cfg.url) { setSyncStatus('inaktiv'); return; }
+  var db = pouchDB();
+  var remote = syncRemoteUrl(cfg);
+  if (!db || !remote || typeof PouchDB === 'undefined') { setSyncStatus('nicht verfügbar', 'var(--danger)'); return; }
+  setSyncStatus('verbinde…');
+  _syncHandler = db.sync(remote, { live: true, retry: true })
+    .on('change', function(){ setSyncStatus('synchron', 'var(--success)'); })
+    .on('paused', function(err){ setSyncStatus(err ? 'offline' : 'synchron', err ? 'var(--text2)' : 'var(--success)'); })
+    .on('active', function(){ setSyncStatus('synchronisiert…'); })
+    .on('denied', function(){ setSyncStatus('Zugriff verweigert', 'var(--danger)'); })
+    .on('error', function(){ setSyncStatus('Fehler/offline', 'var(--danger)'); });
+}
+function stopSync() {
+  if (_syncHandler) { try { _syncHandler.cancel(); } catch(e){} _syncHandler = null; }
+}
+function saveSyncSettings() {
+  var cfg = {
+    url: (document.getElementById('syncUrl').value || '').trim(),
+    user: (document.getElementById('syncUser').value || '').trim(),
+    pass: document.getElementById('syncPass').value || '',
+    enabled: document.getElementById('syncEnabled').checked
+  };
+  localStorage.setItem(SYNC_CFG_KEY, JSON.stringify(cfg));
+  if (cfg.enabled && cfg.url) { startSync(); showToast('☁️ Sync gespeichert'); }
+  else { stopSync(); setSyncStatus('inaktiv'); showToast('Sync deaktiviert'); }
+}
+function loadSyncSettingsIntoForm() {
+  var cfg = getSyncCfg();
+  var u = document.getElementById('syncUrl'); if (u) u.value = cfg.url || '';
+  var us = document.getElementById('syncUser'); if (us) us.value = cfg.user || '';
+  var p = document.getElementById('syncPass'); if (p) p.value = cfg.pass || '';
+  var e = document.getElementById('syncEnabled'); if (e) e.checked = !!cfg.enabled;
+  setSyncStatus(cfg.enabled ? (_syncHandler ? 'synchron' : 'verbinde…') : 'inaktiv', cfg.enabled ? 'var(--success)' : 'var(--text2)');
+}
+// Alle Ansichten neu zeichnen (nach eingehenden Sync-Änderungen)
+function rerenderAll() {
+  try { renderBikes(); renderBikeSelectors(); renderMaintenance(); renderStats(); renderLogbook(); if(typeof renderTrackdays==='function')renderTrackdays(); if(typeof renderInventory==='function')renderInventory(); } catch(e){ console.warn('rerenderAll', e); }
 }
 
 // ── IndexedDB ──
@@ -1878,7 +1981,7 @@ function deleteLog(id) {
 function openPhoto(src) { document.getElementById('photoModalImg').src=src; document.getElementById('photoModal').classList.add('open'); }
 
 // ── EXPORT/IMPORT ──
-function openDataModal() { document.getElementById('dataModal').classList.add('open'); }
+function openDataModal() { document.getElementById('dataModal').classList.add('open'); loadSyncSettingsIntoForm(); }
 function closeDataModal() { document.getElementById('dataModal').classList.remove('open'); }
 function exportJSON() {
   const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs,inventory:state.inventory,trackdays:state.trackdays,masterChecklist:state.masterChecklist,tyreTable:state.tyreTable,tyreStock:state.tyreStock,tyreWidthThreshold:state.tyreWidthThreshold};
@@ -3528,10 +3631,12 @@ function exportTrackdayICS() {
   renderBikes();
   renderBikeSelectors();
   checkBackupReminder();
+  try { startLocalWatch(); } catch(e){}
+  try { if (getSyncCfg().enabled) startSync(); } catch(e){}
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v54';
+var APP_VERSION = 'v56';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
