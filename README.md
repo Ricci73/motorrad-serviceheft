@@ -63,6 +63,13 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - Trackday-Listen individuell anpassbar; eine Liste kann zur neuen Master-Liste gemacht werden
 - .ics Kalender-Export mit Erinnerungen
 
+### ☁️ Optionaler Sync (eigener Server)
+- **Geräteübergreifender Abgleich** (iPhone, Mac, Tablet …) über einen **selbst gehosteten CouchDB-Server** — ohne iCloud oder andere Cloud-Dienste
+- **Opt-in:** Standardmäßig bleibt alles lokal im Browser; Sync wird unter 📦 → ☁️ Sync mit Server-URL, Benutzer und Passwort eingeschaltet
+- Live-Replikation in beide Richtungen, offline-tolerant mit automatischem Wiederanlauf; Änderungen anderer Geräte erscheinen ohne Neuladen; Status-Anzeige (synchron / offline / Fehler)
+- Zugriff über HTTPS, z. B. per Tailscale — kein offener Port ins Internet nötig
+- Hinweis: Der App-Zustand wird als ein Dokument abgeglichen; ändert man auf zwei Geräten gleichzeitig, bevor sie sich abgleichen, gewinnt eine Version. Details und Einrichtung: [`docs/DESIGN.md`](docs/DESIGN.md), [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
+
 ### 📤 Export & Import
 - **⚡ Schnellbackup** — 1 Tap sichert alle Daten als JSON
 - **Backup-Erinnerung** — Hinweis wenn letztes Backup > 7 Tage her
@@ -91,7 +98,7 @@ URL im Browser öffnen. In Chrome/Edge: Adressleiste → Install-Icon (⊕) klic
 ## 🔧 Technologie
 
 - Reines **HTML + CSS + JavaScript** — keine Frameworks
-- **IndexedDB** + localStorage (GB-Kapazität)
+- **PouchDB** (lokaler Primärspeicher, optionale Replikation zu CouchDB) + IndexedDB/localStorage als Fallback
 - **PWA** mit Manifest + Service Worker — installierbar und offline-fähig
 - **Versionsnummer** im Header + automatischer **Update-Hinweis** bei neuer Version
 - Automatische Foto-Komprimierung via Canvas API
