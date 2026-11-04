@@ -1,6 +1,6 @@
 # BikerDesk — Detail-Design (UML)
 
-**Stand:** App-Version v53 · September 2026
+**Stand:** App-Version v56 · November 2026
 **Quelle:** abgeleitet aus dem echten Code (`index.html`, main, v53)
 **Notation:** Mermaid (rendert in VS Code, GitHub, den meisten Markdown-Viewern)
 
@@ -344,14 +344,14 @@ graph TB
         subgraph Persistence["Persistenz-Layer"]
             IDB["IndexedDB (primaer)<br/>DB 'MotoServiceheftDB' v1<br/>Store 'appdata' key 'state'<br/>dbOpen/dbSave/dbLoad"]
             LS["localStorage (Fallback + Migration)<br/>key 'moto_serviceheft'<br/>+ 'moto_last_backup'"]
-            Pouch["PouchDB (geplant, REQ-SYNC-02)<br/>lokale DB, ersetzt direkten IndexedDB-Zugriff<br/>Dokument _id bikerdesk-state"]
+            Pouch["PouchDB (REQ-SYNC-02)<br/>lokale DB, Primärspeicher<br/>Dokument _id bikerdesk-state<br/>serialisierte Speicher-Queue + lokaler Change-Watcher"]
         end
 
         SW["Service Worker (./sw.js)<br/>Cache + Offline<br/>Update-Banner bei neuer Version"]
     end
 
-    subgraph SelfHost["Eigene Infrastruktur (geplant, optional)"]
-        Couch["CouchDB (Proxmox-LXC, REQ-SYNC-01/06)<br/>selbst gehostet, Zugriff via Tailscale/HTTPS"]
+    subgraph SelfHost["Eigene Infrastruktur (optional)"]
+        Couch["CouchDB 3.5 (Proxmox-LXC 105, REQ-SYNC-01/06)<br/>selbst gehostet, HTTPS via Tailscale serve im Container"]
     end
 
     GH -->|laedt App-Shell| UI
@@ -371,11 +371,11 @@ graph TB
     State -.->|load: IDB zuerst| IDB
     State -.->|Fallback + einmalige Migration| LS
 
-    SaveFn -.->|geplant: statt IDB| Pouch
+    SaveFn -->|Primärspeicher| Pouch
     Pouch -.->|optionale Live-Replikation<br/>nur wenn Sync aktiv REQ-SYNC-03/04| Couch
 ```
 
-> Hinweis zum Sync (geplant): PouchDB ersetzt im Persistenz-Layer den direkten
+> Hinweis zum Sync: PouchDB ersetzt im Persistenz-Layer den direkten
 > IndexedDB-Zugriff und bleibt ohne konfigurierten Server rein lokal (Verhalten wie
 > heute). Ist in den Einstellungen ein CouchDB-Ziel hinterlegt, repliziert PouchDB
 > zusätzlich bidirektional dorthin. GitHub Pages liefert weiterhin nur die App-Shell
@@ -558,7 +558,7 @@ stateDiagram-v2
 
 ---
 
-### 3.5 Sync-Replikation (optional, geplant — REQ-SYNC)
+### 3.5 Sync-Replikation (optional — REQ-SYNC)
 
 > Nur aktiv, wenn in den Einstellungen ein CouchDB-Ziel hinterlegt ist. Ohne
 > Konfiguration bleibt die App rein lokal (PouchDB ohne Replikation).
@@ -587,7 +587,7 @@ sequenceDiagram
         UI->>Pouch: save schreibt Dokument bikerdesk-state
         Pouch->>Couch: Änderung replizieren
         Couch-->>Pouch: Änderungen anderer Geräte empfangen
-        Pouch->>UI: Ansicht aktualisieren
+        Pouch->>UI: Change-Watcher zeichnet Ansicht neu
     end
 
     alt offline
@@ -598,7 +598,7 @@ sequenceDiagram
 
     alt Konflikt bei parallelem Edit
         Couch-->>Pouch: konkurrierende Revision
-        Sync->>UI: last-write-wins, Hinweis anzeigen
+        Sync->>UI: deterministischer Gewinner, Hinweis in Doku
     end
 ```
 
@@ -609,3 +609,13 @@ sequenceDiagram
 - Der **feste Stückpreis** (`unitPrice`) macht die Kostenrechnung robust gegenüber
   wechselnder Bedeutung von `qty` (Kaufmenge vs. aktueller Bestand nach Nachkauf).
 - Reifenverbrauch nutzt **FIFO** über `batches` (älteste DOT zuerst).
+- **Sync und Konflikte:** Der gesamte App-Zustand liegt in einem PouchDB-Dokument
+  (`bikerdesk-state`). Bei gleichzeitigen Änderungen auf zwei Geräten vor dem Abgleich
+  wählt PouchDB deterministisch eine Revision als Gewinner (nicht zwingend die zeitlich
+  letzte); die andere Änderung geht verloren. Mögliche Weiterentwicklung: mehrere
+  kleinere Dokumente (z. B. je Bike/Log) statt eines Gesamtdokuments.
+- **Speicher-Queue:** `pouchSave()` serialisiert Schreibzugriffe, damit schnelle
+  `save()`-Folgen keine 409-Konflikte erzeugen. Der lokale Change-Watcher
+  (`db.changes`, live) erkennt fremde Revisionen und rendert die Ansichten neu.
+- **Erstverbindung:** Sync zuerst auf dem Gerät mit den vollständigen Daten aktivieren,
+  danach auf weiteren Geräten, ohne vorher dort zu ändern.
