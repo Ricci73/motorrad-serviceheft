@@ -573,7 +573,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v55</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v56</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -960,13 +960,35 @@ function pouchDB() {
   try { _pouch = new PouchDB('bikerdesk'); } catch(e) { _pouch = null; }
   return _pouch;
 }
+var _pouchQueue = Promise.resolve();
+var _pouchSaving = false;
+var _lastPouchRev = null;
 function pouchSave() {
   var db = pouchDB();
   if (!db) return;
-  db.get(POUCH_DOC_ID).catch(function(){ return { _id: POUCH_DOC_ID }; }).then(function(doc){
-    doc.data = statePayload();
-    return db.put(doc);
-  }).catch(function(e){ console.warn('pouchSave', e); });
+  // Speicherungen strikt nacheinander (verhindert 409-Konflikte bei schnellen save()-Folgen)
+  _pouchQueue = _pouchQueue.then(function(){
+    _pouchSaving = true;
+    return db.get(POUCH_DOC_ID).catch(function(){ return { _id: POUCH_DOC_ID }; }).then(function(doc){
+      doc.data = statePayload(); // immer den aktuellsten Stand schreiben
+      return db.put(doc);
+    }).then(function(res){ _lastPouchRev = res.rev; });
+  }).catch(function(e){ console.warn('pouchSave', e); }).then(function(){ _pouchSaving = false; });
+}
+// Überwacht den lokalen Speicher: von aussen eingetroffene Änderungen (Sync) sofort anzeigen
+var _pouchWatch = null;
+function startLocalWatch() {
+  var db = pouchDB();
+  if (!db || _pouchWatch) return;
+  _pouchWatch = db.changes({ since: 'now', live: true, include_docs: true, doc_ids: [POUCH_DOC_ID] })
+    .on('change', function(ch){
+      if (_pouchSaving || !ch.doc || ch.doc._rev === _lastPouchRev || !ch.doc.data) return; // eigene Änderung
+      applyPayload(ch.doc.data);
+      migrateInventoryUnitPrice();
+      _lastPouchRev = ch.doc._rev;
+      rerenderAll();
+    })
+    .on('error', function(e){ console.warn('pouchWatch', e); _pouchWatch = null; });
 }
 function pouchLoad() {
   var db = pouchDB();
@@ -1004,7 +1026,7 @@ function startSync() {
   if (!db || !remote || typeof PouchDB === 'undefined') { setSyncStatus('nicht verfügbar', 'var(--danger)'); return; }
   setSyncStatus('verbinde…');
   _syncHandler = db.sync(remote, { live: true, retry: true })
-    .on('change', function(){ setSyncStatus('synchron', 'var(--success)'); pouchLoad().then(function(d){ if (d) { applyPayload(d); rerenderAll(); } }); })
+    .on('change', function(){ setSyncStatus('synchron', 'var(--success)'); })
     .on('paused', function(err){ setSyncStatus(err ? 'offline' : 'synchron', err ? 'var(--text2)' : 'var(--success)'); })
     .on('active', function(){ setSyncStatus('synchronisiert…'); })
     .on('denied', function(){ setSyncStatus('Zugriff verweigert', 'var(--danger)'); })
@@ -1034,7 +1056,7 @@ function loadSyncSettingsIntoForm() {
 }
 // Alle Ansichten neu zeichnen (nach eingehenden Sync-Änderungen)
 function rerenderAll() {
-  try { renderBikes(); renderBikeSelectors(); renderMaintenance(); renderStats(); renderLogbook(); if(typeof renderTrackdays==='function')renderTrackdays(); if(typeof renderInventory==='function')renderInventory(); } catch(e){}
+  try { renderBikes(); renderBikeSelectors(); renderMaintenance(); renderStats(); renderLogbook(); if(typeof renderTrackdays==='function')renderTrackdays(); if(typeof renderInventory==='function')renderInventory(); } catch(e){ console.warn('rerenderAll', e); }
 }
 
 // ── IndexedDB ──
@@ -3609,11 +3631,12 @@ function exportTrackdayICS() {
   renderBikes();
   renderBikeSelectors();
   checkBackupReminder();
+  try { startLocalWatch(); } catch(e){}
   try { if (getSyncCfg().enabled) startSync(); } catch(e){}
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v55';
+var APP_VERSION = 'v56';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
