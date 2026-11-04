@@ -1,6 +1,6 @@
 # BikerDesk — Anforderungen / Feature-Liste
 
-**Stand:** App-Version v53 · November 2026 (Multi-Device-Sync in Planung, siehe REQ-SYNC)
+**Stand:** App-Version v56 · November 2026
 **Zweck:** Leichtgewichtige Übersicht der Funktionen mit IDs und Status.
 Verweise auf das Detail-Design: [`docs/DESIGN.md`](./DESIGN.md).
 
@@ -74,22 +74,22 @@ Verweise auf das Detail-Design: [`docs/DESIGN.md`](./DESIGN.md).
 | REQ-SYS-05 | PWA: installierbar, offline-fähig (Service Worker), Android-Manifest | ✅ |
 | REQ-SYS-06 | Versionsnummer im Header + Update-Banner bei neuer Version | ✅ |
 | REQ-SYS-07 | Eingebaute Hilfe (❓) | ✅ |
-| REQ-SYS-08 | Keine Cloud-Abhängigkeit (kein iCloud/Google); vollständiger Betrieb in eigener Infrastruktur möglich | 🧪 |
+| REQ-SYS-08 | Keine Cloud-Abhängigkeit (kein iCloud/Google); vollständiger Betrieb in eigener Infrastruktur möglich | ✅ |
 
 ## 6b. Multi-Device-Sync (REQ-SYNC)
 
 > Optionaler geräteübergreifender Datenabgleich über selbst gehostetes CouchDB.
-> Design/Ablauf: siehe [`docs/DESIGN.md`](./DESIGN.md) Abschnitt 2.2 (Komponenten) und 3.5 (Sync-Replikation).
+> Design/Ablauf: siehe [`docs/DESIGN.md`](./DESIGN.md) Abschnitt 2.2 (Komponenten) und 3.5 (Sync-Replikation). Bekannte Einschränkung: Gesamtzustand liegt in einem Dokument, gleichzeitige Änderungen auf zwei Geräten vor dem Abgleich können sich überschreiben.
 
 | ID | Anforderung | Status |
 |----|-------------|--------|
-| REQ-SYNC-01 | Optionaler Multi-Device-Sync über selbst gehostetes CouchDB; Standard bleibt lokal-only (Opt-in) | 🧪 |
-| REQ-SYNC-02 | Lokaler Speicher auf PouchDB umgestellt; Offline-Verhalten identisch zu heute; verlustfreie Migration bestehender IndexedDB/localStorage-Daten | 🧪 |
-| REQ-SYNC-03 | Sync-Konfiguration (URL, Benutzer, Passwort, aktiv-Schalter) in den Einstellungen; ohne Eingabe reiner Lokalbetrieb | 🧪 |
-| REQ-SYNC-04 | Bidirektionale Live-Replikation, offline-tolerant mit automatischem Wiederanlauf; Status-Anzeige (synchron/offline/Fehler) | 🧪 |
-| REQ-SYNC-05 | Dokumentierte Konfliktstrategie (last-write-wins mit sichtbarem Hinweis) für parallele Geräte-Edits | 🧪 |
-| REQ-SYNC-06 | Zugriff aus dem Heimnetz direkt, von unterwegs über Tailscale; kein offener Port ins Internet | 🧪 |
-| REQ-SYNC-07 | HTTPS-fähige Anbindung (Mixed-Content-frei) via Tailscale ts.net oder lokalem Zertifikat | 🧪 |
+| REQ-SYNC-01 | Optionaler Multi-Device-Sync über selbst gehostetes CouchDB; Standard bleibt lokal-only (Opt-in) | ✅ |
+| REQ-SYNC-02 | Lokaler Speicher auf PouchDB umgestellt; Offline-Verhalten identisch zu heute; verlustfreie Migration bestehender IndexedDB/localStorage-Daten | ✅ |
+| REQ-SYNC-03 | Sync-Konfiguration (URL, Benutzer, Passwort, aktiv-Schalter) in den Einstellungen; ohne Eingabe reiner Lokalbetrieb | ✅ |
+| REQ-SYNC-04 | Bidirektionale Live-Replikation, offline-tolerant mit automatischem Wiederanlauf; Status-Anzeige (synchron/offline/Fehler); eingehende Änderungen werden ohne Neuladen angezeigt | ✅ |
+| REQ-SYNC-05 | Dokumentierte Konfliktstrategie: bei gleichzeitigen Änderungen wählt PouchDB deterministisch einen Gewinner (Gesamtzustand als ein Dokument); Hinweis in der Doku | ✅ |
+| REQ-SYNC-06 | Zugriff aus dem Heimnetz direkt, von unterwegs über Tailscale; kein offener Port ins Internet | ✅ |
+| REQ-SYNC-07 | HTTPS-fähige Anbindung (Mixed-Content-frei) via Tailscale (CouchDB-Container als eigener Tailnet-Knoten mit tailscale serve) | ✅ |
 
 ## 7. Backlog / Ideen (REQ-IDEA)
 
