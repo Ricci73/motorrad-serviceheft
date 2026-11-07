@@ -67,6 +67,28 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 .container { max-width: 768px; margin: 0 auto; padding: 16px 12px; }
 .page { display: none; } .page.active { display: block; }
 
+/* ── DESKTOP-LAYOUT (ab 1000px, Mobile/Tablet unverändert) ── */
+@media (min-width: 1000px) {
+  /* Breiteren, ruhigeren Lesebereich statt schmaler 768px-Spalte */
+  .container {
+    max-width: 1100px; padding: 28px 32px;
+    /* Content-Panel vom dunklen Seitenrand abheben (Zwischenton: dunkler als Karten) */
+    background: #15151c; border: 1px solid var(--border);
+    border-radius: 16px 16px 0 0; border-bottom: none;
+    min-height: calc(100vh - var(--nav-h)); box-shadow: var(--shadow);
+  }
+  /* Motorrad-Karten füllen die Breite in einem luftigen Raster */
+  .bike-list { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  /* Fixe Bottom-Nav am großen Monitor mittig auf Content-Breite statt randlos */
+  .bottom-nav {
+    left: 50%; right: auto; transform: translateX(-50%);
+    width: min(1100px, 100%); border-radius: 16px 16px 0 0;
+    border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  }
+  /* FAB an den rechten Rand des Content-Bereichs koppeln, nicht an den Fensterrand */
+  .fab { right: calc((100vw - min(1100px, 100vw)) / 2 + 24px); }
+}
+
 /* ── BUTTONS ── */
 .btn {
   border: none; border-radius: 10px; padding: 12px 20px;
@@ -573,7 +595,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v56</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v57</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -3636,7 +3658,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v56';
+var APP_VERSION = 'v57';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
