@@ -123,6 +123,14 @@ Die App enthält eine eingebaute Hilfe — tippe ❓ (oben rechts).
 
 ---
 
+## 🛠️ Für Entwickler
+
+Mitentwickeln an BikerDesk? Einstieg, lokales Testen, Git-Workflow und Stolpersteine:
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md). Architektur & Anforderungen:
+[`docs/DESIGN.md`](docs/DESIGN.md) · [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
+
+---
+
 ## 📄 Lizenz
 
 MIT — frei verwendbar und anpassbar.
