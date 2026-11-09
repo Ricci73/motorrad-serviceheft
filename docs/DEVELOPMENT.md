@@ -1,6 +1,6 @@
 # BikerDesk — Entwickler-Doku
 
-**Stand:** v57 · November 2026
+**Stand:** v58 · November 2026
 **Zielgruppe:** Wer an BikerDesk weiterentwickelt (inkl. KI-Agenten).
 Für *was* die App ist: [`DESIGN.md`](./DESIGN.md) · [`REQUIREMENTS.md`](./REQUIREMENTS.md).
 Diese Datei erklärt das *Wie*.
@@ -75,8 +75,18 @@ bei einem Release **nicht** erhöht, behalten bestehende Nutzer ewig die alte Ve
 - **Manifest** erzwingt `orientation: portrait` (installierte PWA). Desktop-CSS rein additiv.
 - **Safari-Eigenheiten:** ältere Bugs betrafen `??`/`||` und verschachtelte Template-Literals
   (siehe Commit-Historie v15–v18) — bei JS-Änderungen im Zweifel in Safari gegentesten.
+- **Service Worker und fremde Hosts:** `sw.js` darf Anfragen an andere Origins (CouchDB-Sync,
+  Kalender-Proxy) nicht abfangen (`if (new URL(req.url).origin !== self.location.origin) return;`).
+  Sonst werden sie stumm geblockt, die Konsole zeigt „ServiceWorker hat abgelehnte Promise an
+  FetchEvent.respondWith() übergeben", und im Server-Log kommt keine Anfrage an.
+- **Firefox und lokales Netz:** Greift eine öffentliche Seite (github.io, raw.githack.com) auf eine
+  Adresse im lokalen Netz zu, auch auf Tailscale-Adressen (100.x), fragt Firefox per Popup um
+  Erlaubnis. Aus `file://` kommt diese Frage nicht, dort läuft derselbe Abruf ohne Popup, ist also
+  kein Beweis, dass er auf der echten Seite funktioniert. Immer auch auf der raw.githack-Preview testen.
+- **Proxy-Allowlist:** Der Kalender-Proxy erlaubt nur `https://ricci73.github.io` und
+  `https://raw.githack.com`. `rawcdn.githack.com` und `file://` (Origin `null`) sind bewusst nicht erlaubt.
 
 ## 6. Versionierung
 
-Fortlaufend `vNN` (aktuell **v57**). Beim Release die drei Stellen in §3.4 gemeinsam erhöhen;
+Fortlaufend `vNN` (aktuell **v58**). Beim Release die drei Stellen in §3.4 gemeinsam erhöhen;
 `REQUIREMENTS.md`/`DESIGN.md` bei neuen Features mitpflegen.
