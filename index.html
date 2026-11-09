@@ -588,6 +588,15 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
       <span id="syncStatus" style="font-size:0.82rem;color:var(--text2)"></span>
     </div>
 
+    <div class="section-label" style="margin-top:20px">📅 Kalender-Import (optional)</div>
+    <div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px;font-size:0.8rem;color:var(--text2)">
+      Holt Trackday-Termine über einen eigenen Lese-Proxy (JSON). Ohne Proxy-URL bleibt die Funktion aus und unsichtbar.
+    </div>
+    <div class="form-group"><label>Proxy-URL</label><input id="calUrl" placeholder="https://host/bikerdesk/trackdays.json" autocomplete="off" /></div>
+    <div class="form-group"><label>Token</label><input id="calToken" type="password" autocomplete="off" /></div>
+    <div style="margin:6px 0 12px">
+      <button class="btn btn-primary btn-sm" onclick="saveCalSettings()">💾 Kalender-Import speichern</button>
+    </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeDataModal()">Schließen</button></div>
   </div>
 </div>
@@ -595,7 +604,7 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
 
 <!-- ── HEADER ── -->
 <header>
-  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v57</span></h1>
+  <h1>🏍️ BikerDesk <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:2px" id="appVersionLabel">v58</span></h1>
   <div style="display:flex;gap:6px">
     <button class="btn btn-secondary btn-sm" onclick="openHelpModal()">❓</button>
     <button class="btn btn-primary btn-sm" onclick="quickBackup()" title="Schnellbackup">⚡</button>
@@ -664,6 +673,11 @@ header h1 { font-size: 1.15rem; font-weight: 700; display: flex; align-items: ce
         <button class="btn btn-secondary btn-sm" onclick="exportTrackdayICS()">📅 .ics</button>
         <button class="btn btn-primary btn-sm" onclick="openTrackdayModal()">+ Trackday</button>
       </div>
+    </div>
+    <div id="calImportBox" class="card" style="display:none;margin-bottom:12px">
+      <div class="section-label" style="margin-top:0">📅 KALENDER-IMPORT</div>
+      <button class="btn btn-secondary btn-sm" id="calImportBtn" onclick="importCalendarTrackdays()">📥 Termine holen</button>
+      <span id="calImportStatus" style="font-size:0.82rem;color:var(--text2);margin-left:8px"></span>
     </div>
     <div class="section-label">KOMMENDE</div>
     <div id="trackdayUpcoming"></div>
@@ -1075,6 +1089,78 @@ function loadSyncSettingsIntoForm() {
   var p = document.getElementById('syncPass'); if (p) p.value = cfg.pass || '';
   var e = document.getElementById('syncEnabled'); if (e) e.checked = !!cfg.enabled;
   setSyncStatus(cfg.enabled ? (_syncHandler ? 'synchron' : 'verbinde…') : 'inaktiv', cfg.enabled ? 'var(--success)' : 'var(--text2)');
+}
+// ── KALENDER-IMPORT (Lese-Proxy → Trackdays "Geplant"), opt-in ──
+var CAL_CFG_KEY = 'bikerdesk_calimport';
+function getCalCfg() {
+  try { return JSON.parse(localStorage.getItem(CAL_CFG_KEY) || '{}'); } catch(e) { return {}; }
+}
+function updateCalImportUI() {
+  var box = document.getElementById('calImportBox');
+  if (box) box.style.display = getCalCfg().url ? '' : 'none';
+}
+function saveCalSettings() {
+  var cfg = {
+    url: (document.getElementById('calUrl').value || '').trim(),
+    token: (document.getElementById('calToken').value || '').trim()
+  };
+  if (cfg.url && !/^https:\/\//i.test(cfg.url)) { showToast('Proxy-URL muss mit https:// beginnen', 'error'); return; }
+  if (cfg.url) localStorage.setItem(CAL_CFG_KEY, JSON.stringify(cfg));
+  else localStorage.removeItem(CAL_CFG_KEY);
+  updateCalImportUI();
+  showToast(cfg.url ? '📅 Kalender-Import gespeichert' : 'Kalender-Import deaktiviert');
+}
+function loadCalSettingsIntoForm() {
+  var cfg = getCalCfg();
+  var u = document.getElementById('calUrl'); if (u) u.value = cfg.url || '';
+  var t = document.getElementById('calToken'); if (t) t.value = cfg.token || '';
+}
+function importCalendarTrackdays() {
+  var cfg = getCalCfg();
+  var status = document.getElementById('calImportStatus');
+  var btn = document.getElementById('calImportBtn');
+  if (!cfg.url) return;
+  var url = cfg.url + (cfg.url.indexOf('?') === -1 ? '?' : '&') + 'token=' + encodeURIComponent(cfg.token || '');
+  if (btn) btn.disabled = true;
+  if (status) status.textContent = 'lade…';
+  fetch(url, { method: 'GET', cache: 'no-store' })
+    .then(function(r) {
+      if (r.status === 401 || r.status === 403) throw new Error('Token ungültig');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      if (!data || !Array.isArray(data.events)) throw new Error('Unerwartete Antwort');
+      if (!state.trackdays) state.trackdays = [];
+      var known = {};
+      state.trackdays.forEach(function(t) { if (t.calUid) known[t.calUid] = true; });
+      var re = /^\d{4}-\d{2}-\d{2}$/;
+      var added = 0, skipped = 0;
+      data.events.forEach(function(ev) {
+        if (!ev || !ev.uid || known[ev.uid]) { skipped++; return; }   // Dubletten-Schutz, Bestehendes nie anfassen
+        var days = (Array.isArray(ev.days) ? ev.days : []).filter(function(d) { return re.test(d); }).sort();
+        var track = String(ev.location || ev.title || '').trim();
+        if (!days.length || !track) { skipped++; return; }
+        state.trackdays.push({
+          id: uid(), calUid: String(ev.uid), track: track, status: 'Geplant',
+          organizer: '', bikeId: null, tyreSetupIds: [], notes: '',
+          days: days.map(function(d) { return { datum: d, art: '', gruppe: '', besteZeit: '', kosten: 0 }; }),
+          checklist: buildDefaultChecklist()
+        });
+        known[ev.uid] = true;
+        added++;
+      });
+      if (added) { save(); renderTrackdays(); }
+      if (status) status.textContent = added + ' neu, ' + skipped + ' übersprungen';
+      showToast(added ? '📥 ' + added + ' Trackday(s) importiert' : 'Keine neuen Termine');
+    })
+    .catch(function(err) {
+      // Nichts wurde geschrieben → kein Datenverlust
+      var m = (err && err.message === 'Failed to fetch') ? 'Proxy nicht erreichbar' : ((err && err.message) || 'Fehler');
+      if (status) status.textContent = '⚠️ ' + m;
+      showToast('Import fehlgeschlagen: ' + m, 'error');
+    })
+    .then(function() { if (btn) btn.disabled = false; });
 }
 // Alle Ansichten neu zeichnen (nach eingehenden Sync-Änderungen)
 function rerenderAll() {
@@ -2003,7 +2089,7 @@ function deleteLog(id) {
 function openPhoto(src) { document.getElementById('photoModalImg').src=src; document.getElementById('photoModal').classList.add('open'); }
 
 // ── EXPORT/IMPORT ──
-function openDataModal() { document.getElementById('dataModal').classList.add('open'); loadSyncSettingsIntoForm(); }
+function openDataModal() { document.getElementById('dataModal').classList.add('open'); loadSyncSettingsIntoForm(); loadCalSettingsIntoForm(); }
 function closeDataModal() { document.getElementById('dataModal').classList.remove('open'); }
 function exportJSON() {
   const data={version:1,exportedAt:new Date().toISOString(),bikes:state.bikes,maintenance:state.maintenance,logs:state.logs,inventory:state.inventory,trackdays:state.trackdays,masterChecklist:state.masterChecklist,tyreTable:state.tyreTable,tyreStock:state.tyreStock,tyreWidthThreshold:state.tyreWidthThreshold};
@@ -3064,6 +3150,7 @@ function renderTrackdays() {
 
   document.getElementById('trackdayUpcoming').innerHTML = upcoming.length ? upcoming.map(renderTdCard).join('') : '<div class="empty-state"><div class="icon">🏁</div><p>Keine kommenden Trackdays</p></div>';
   document.getElementById('trackdayPast').innerHTML = past.length ? past.map(renderTdCard).join('') : '<div style="color:var(--text2);font-size:0.85rem;padding:12px">Noch keine vergangenen Trackdays</div>';
+  updateCalImportUI();
 }
 
 function renderTdCard(td) {
@@ -3658,7 +3745,7 @@ function exportTrackdayICS() {
 })();
 
 // ── APP VERSION + UPDATE DETECTION ──
-var APP_VERSION = 'v57';
+var APP_VERSION = 'v58';
 (function(){
   var lbl = document.getElementById('appVersionLabel');
   if (lbl) lbl.textContent = APP_VERSION;
