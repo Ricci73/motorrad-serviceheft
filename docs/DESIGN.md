@@ -268,6 +268,7 @@ classDiagram
         +string bikeId
         +string[] tyreSetupIds
         +string notes
+        +string calUid
         +TrackdayDay[] days
         +ChecklistItem[] checklist
     }
@@ -352,6 +353,8 @@ graph TB
 
     subgraph SelfHost["Eigene Infrastruktur (optional)"]
         Couch["CouchDB 3.5 (Proxmox-LXC 105, REQ-SYNC-01/06)<br/>selbst gehostet, HTTPS via Tailscale serve im Container"]
+        CalProxy["Kalender-Lese-Proxy (Proxmox-LXC 104, REQ-CAL-08)<br/>Python stdlib, Token-Pruefung, JSON + CORS<br/>HTTPS via Tailscale serve unter /bikerdesk"]
+        Radicale["Radicale CalDAV (LXC 104)<br/>Kalender 'TD-Kalender'"]
     end
 
     GH -->|laedt App-Shell| UI
@@ -373,7 +376,14 @@ graph TB
 
     SaveFn -->|Primärspeicher| Pouch
     Pouch -.->|optionale Live-Replikation<br/>nur wenn Sync aktiv REQ-SYNC-03/04| Couch
+    Pages -.->|optionaler Import auf Knopfdruck<br/>nur wenn Proxy-URL gesetzt REQ-CAL-01/03| CalProxy
+    CalProxy -->|liest nur lesend per CalDAV| Radicale
 ```
+
+> Hinweis zum Kalender-Import: Der Browser spricht kein CalDAV. Radicale (wie die meisten
+> CalDAV-Server) sendet keine CORS-Header, deshalb liegt ein kleiner Lese-Proxy davor. Er hält
+> die Zugangsdaten, prüft ein eigenes Token und liefert JSON. In der Seite liegen nur Proxy-URL
+> und Token.
 
 > Hinweis zum Sync: PouchDB ersetzt im Persistenz-Layer den direkten
 > IndexedDB-Zugriff und bleibt ohne konfigurierten Server rein lokal (Verhalten wie
@@ -601,6 +611,62 @@ sequenceDiagram
         Sync->>UI: deterministischer Gewinner, Hinweis in Doku
     end
 ```
+
+### 3.6 Kalender-Import (optional — REQ-CAL)
+
+> Nur aktiv, wenn im Daten-Dialog eine Proxy-URL hinterlegt ist. Ohne Konfiguration bleibt der
+> Import-Bereich auf der Trackdays-Seite ausgeblendet. Der Import liest nur und schreibt nie in
+> den Kalender.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as UI (Trackdays-Seite)
+    participant Proxy as Lese-Proxy
+    participant Cal as Radicale CalDAV
+    participant State as state.trackdays
+
+    User->>UI: Proxy-URL und Token im Daten-Dialog speichern
+    Note over UI: Import-Bereich wird sichtbar
+
+    User->>UI: Termine holen
+    UI->>Proxy: GET trackdays.json mit Token
+    alt Token ungueltig oder Proxy nicht erreichbar
+        Proxy-->>UI: 401 oder Netzwerkfehler
+        UI->>User: Hinweis, nichts wird geschrieben
+    else Token gueltig
+        Proxy->>Cal: REPORT auf den TD-Kalender, nur lesend
+        Cal-->>Proxy: Termine als ICS
+        Proxy->>Proxy: ICS parsen, Ganztags-Ende ist exklusiv
+        Proxy-->>UI: JSON mit uid, title, location und days
+        loop je Termin
+            UI->>State: calUid bereits vorhanden
+            alt bekannt
+                Note over UI,State: überspringen, nie ändern
+            else neu
+                UI->>State: Trackday mit Status Geplant anlegen
+            end
+        end
+        UI->>User: Anzahl neu und übersprungen anzeigen
+    end
+```
+
+- **Mehrtägige Termine:** Ein Kalendertermin über mehrere Tage wird zu **einem** Trackday mit
+  mehreren Einträgen in `days` (je Kalendertag einer). Bei Ganztags-Terminen ist das Ende im
+  Kalender exklusiv (Ende 15. = letzter Tag 14.), der Proxy rechnet das heraus.
+- **Dubletten-Schutz:** `calUid` am Trackday ist die Termin-UID aus dem Kalender. Bekannte UIDs
+  werden übersprungen und nie verändert. Damit bleiben gebuchte oder gepflegte Trackdays unberührt.
+  Ein in BikerDesk gelöschter Trackday kommt beim nächsten Import wieder, solange der Termin im
+  Kalender steht (bewusst: Löschen erfolgt in beiden Systemen).
+- **Token als Query-Parameter:** Ein eigener Header würde einen CORS-Preflight auslösen. Das Token
+  ist ein eigenes, widerrufbares Proxy-Token, nicht das Kalender-Passwort.
+- **Service Worker:** `sw.js` fängt Anfragen an fremde Hosts nicht ab. Sonst werden sie stumm
+  geblockt (der Firefox-Hinweis zum lokalen Netzwerk kann nur für Anfragen der Seite selbst
+  erscheinen) und Antworten würden samt Token-URL gecacht.
+- **Firefox und lokales Netz:** Greift eine öffentliche Seite (github.io) auf eine Tailscale-Adresse
+  (100.x) zu, fragt Firefox einmal um Erlaubnis. Die Option „Entscheidung merken" setzen.
+- **Nach dem Import:** Importierte Trackdays sind normale Trackdays (Sync, Backup, Export wie
+  gewohnt). Es gibt keine Rücksynchronisation in den Kalender.
 
 - Die Feldlisten stammen aus den `save*`-Funktionen (nicht nur aus den Formularen),
   inkl. abgeleiteter Felder (`kmDate`, `unitPrice`).

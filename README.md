@@ -62,6 +62,7 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - **Master-Checkliste** — zentral bearbeitbar, dient als Vorlage für neue Trackdays
 - Trackday-Listen individuell anpassbar; eine Liste kann zur neuen Master-Liste gemacht werden
 - .ics Kalender-Export mit Erinnerungen
+- **📅 Kalender-Import (optional)** — Termine aus einem eigenen Kalender per Knopfdruck als Trackday „Geplant" übernehmen (mehrtägige Termine werden ein Trackday mit mehreren Tagen, kein Duplikat beim erneuten Import, nur lesend). Läuft über einen kleinen Lese-Proxy im eigenen Netz; ohne Einrichtung bleibt die Funktion unsichtbar. Details: [`docs/DESIGN.md`](docs/DESIGN.md) Abschnitt 3.6
 
 ### ☁️ Optionaler Sync (eigener Server)
 - **Geräteübergreifender Abgleich** (iPhone, Mac, Tablet …) über einen **selbst gehosteten CouchDB-Server** — ohne iCloud oder andere Cloud-Dienste

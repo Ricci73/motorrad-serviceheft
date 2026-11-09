@@ -1,4 +1,4 @@
-const CACHE_NAME = "bikerdesk-v57";
+const CACHE_NAME = "bikerdesk-v58";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./pouchdb.min.js"];
 
 self.addEventListener("install", function(e) {
@@ -30,6 +30,8 @@ self.addEventListener("activate", function(e) {
 
 self.addEventListener("fetch", function(e) {
   var req = e.request;
+  // Fremde Hosts (Kalender-Proxy, CouchDB-Sync) weder abfangen noch cachen
+  if (new URL(req.url).origin !== self.location.origin) return;
   var isHTML = req.mode === "navigate" || (req.headers.get("accept") || "").indexOf("text/html") !== -1;
   if (isHTML) {
     e.respondWith(
