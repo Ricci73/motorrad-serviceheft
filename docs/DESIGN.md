@@ -377,7 +377,7 @@ graph TB
     SaveFn -->|Primärspeicher| Pouch
     Pouch -.->|optionale Live-Replikation<br/>nur wenn Sync aktiv REQ-SYNC-03/04| Couch
     Pages -.->|optionaler Import auf Knopfdruck<br/>nur wenn Proxy-URL gesetzt REQ-CAL-01/03| CalProxy
-    CalProxy -->|BikerDesk-Weg: liest nur lesend per CalDAV| Radicale
+    CalProxy -->|liest nur lesend per CalDAV| Radicale
 ```
 
 > Hinweis zum Kalender-Import: Der Browser spricht kein CalDAV. Radicale (wie die meisten
@@ -658,13 +658,6 @@ sequenceDiagram
   werden übersprungen und nie verändert. Damit bleiben gebuchte oder gepflegte Trackdays unberührt.
   Ein in BikerDesk gelöschter Trackday kommt beim nächsten Import wieder, solange der Termin im
   Kalender steht (bewusst: Löschen erfolgt in beiden Systemen).
-- **Schreibweg des Proxys (nicht Teil von BikerDesk):** Der Proxy hat neben dem Lesepfad einen
-  getrennten Schreibpfad für einen externen Helfer, der Termine in einen *eigenen* Kalender anlegt
-  (dort sammelt er Terminvorschläge; gewünschte verschiebt der Nutzer in den importierten Kalender).
-  Er hat einen eigenen Schlüssel (Header `X-Write-Key`), darf nur diesen einen Kalender anlegen und
-  Termine einmalig hinzufügen und kann nichts überschreiben, löschen oder lesen. BikerDesk kennt
-  diesen Weg nicht und braucht ihn nicht; das Lese-Token berechtigt nicht zum Schreiben und der
-  Schreibschlüssel nicht zum Lesen. Das Kalender-Passwort bleibt im Proxy.
 - **Token als Query-Parameter:** Ein eigener Header würde einen CORS-Preflight auslösen. Das Token
   ist ein eigenes, widerrufbares Proxy-Token, nicht das Kalender-Passwort.
 - **Service Worker:** `sw.js` fängt Anfragen an fremde Hosts nicht ab. Sonst werden sie stumm

@@ -79,7 +79,7 @@ Verweise auf das Detail-Design: [`docs/DESIGN.md`](./DESIGN.md).
 | REQ-CAL-05 | Dubletten-Schutz über die Termin-UID (`calUid`): bekannte Termine werden übersprungen und nie verändert, damit sind gebuchte oder gepflegte Trackdays geschützt | ✅ |
 | REQ-CAL-06 | Fehler (Token ungültig, Proxy nicht erreichbar, unerwartetes Format) zeigen einen Hinweis und schreiben nichts | ✅ |
 | REQ-CAL-07 | Der Service Worker fängt Anfragen an fremde Hosts (Kalender-Proxy, CouchDB-Sync) nicht ab und cached sie nicht | ✅ |
-| REQ-CAL-08 | Lese-Proxy (Python, stdlib) im Heimnetz: liest den Kalender per CalDAV nur lesend, prüft ein widerrufbares Token, liefert JSON mit CORS nur für freigegebene Origins; Zugangsdaten liegen nur im Proxy, nie im Browser; HTTPS via Tailscale. Der Weg, den BikerDesk nutzt, ist ausschließlich lesend; das Lese-Token berechtigt nicht zum Schreiben. Der Proxy hat daneben einen getrennten, eng begrenzten Schreibweg mit eigenem Schlüssel für einen externen Helfer (siehe DESIGN 3.6); BikerDesk nutzt ihn nicht | ✅ |
+| REQ-CAL-08 | Lese-Proxy (Python, stdlib) im Heimnetz: liest den Kalender per CalDAV nur lesend, prüft ein widerrufbares Token, liefert JSON mit CORS nur für freigegebene Origins; Zugangsdaten liegen nur im Proxy, nie im Browser; HTTPS via Tailscale | ✅ |
 
 ## 6. Daten & Plattform (REQ-SYS)
 
