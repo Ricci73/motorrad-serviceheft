@@ -80,7 +80,7 @@ bei einem Release **nicht** erhöht, behalten bestehende Nutzer ewig die alte Ve
   Sonst werden sie stumm geblockt, die Konsole zeigt „ServiceWorker hat abgelehnte Promise an
   FetchEvent.respondWith() übergeben", und im Server-Log kommt keine Anfrage an.
 - **Firefox und lokales Netz:** Greift eine öffentliche Seite (github.io, raw.githack.com) auf eine
-  Adresse im lokalen Netz zu, auch auf Tailscale-Adressen (100.x), fragt Firefox per Popup um
+  Adresse im lokalen oder privaten Netz zu (auch per VPN), fragt Firefox per Popup um
   Erlaubnis. Aus `file://` kommt diese Frage nicht, dort läuft derselbe Abruf ohne Popup, ist also
   kein Beweis, dass er auf der echten Seite funktioniert. Immer auch auf der raw.githack-Preview testen.
 - **Proxy-Allowlist:** Der Kalender-Proxy erlaubt nur `https://ricci73.github.io` und

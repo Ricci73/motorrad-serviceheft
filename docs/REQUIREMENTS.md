@@ -79,7 +79,7 @@ Verweise auf das Detail-Design: [`docs/DESIGN.md`](./DESIGN.md).
 | REQ-CAL-05 | Dubletten-Schutz über die Termin-UID (`calUid`): bekannte Termine werden übersprungen und nie verändert, damit sind gebuchte oder gepflegte Trackdays geschützt | ✅ |
 | REQ-CAL-06 | Fehler (Token ungültig, Proxy nicht erreichbar, unerwartetes Format) zeigen einen Hinweis und schreiben nichts | ✅ |
 | REQ-CAL-07 | Der Service Worker fängt Anfragen an fremde Hosts (Kalender-Proxy, CouchDB-Sync) nicht ab und cached sie nicht | ✅ |
-| REQ-CAL-08 | Lese-Proxy (Python, stdlib) im Heimnetz: liest den Kalender per CalDAV nur lesend, prüft ein widerrufbares Token, liefert JSON mit CORS nur für freigegebene Origins; Zugangsdaten liegen nur im Proxy, nie im Browser; HTTPS via Tailscale | ✅ |
+| REQ-CAL-08 | Lese-Proxy (Python, stdlib) im Heimnetz: liest den Kalender per CalDAV nur lesend, prüft ein widerrufbares Token, liefert JSON mit CORS nur für freigegebene Origins; Zugangsdaten liegen nur im Proxy, nie im Browser; per HTTPS erreichbar | ✅ |
 
 ## 6. Daten & Plattform (REQ-SYS)
 
@@ -106,8 +106,8 @@ Verweise auf das Detail-Design: [`docs/DESIGN.md`](./DESIGN.md).
 | REQ-SYNC-03 | Sync-Konfiguration (URL, Benutzer, Passwort, aktiv-Schalter) in den Einstellungen; ohne Eingabe reiner Lokalbetrieb | ✅ |
 | REQ-SYNC-04 | Bidirektionale Live-Replikation, offline-tolerant mit automatischem Wiederanlauf; Status-Anzeige (synchron/offline/Fehler); eingehende Änderungen werden ohne Neuladen angezeigt | ✅ |
 | REQ-SYNC-05 | Dokumentierte Konfliktstrategie: bei gleichzeitigen Änderungen wählt PouchDB deterministisch einen Gewinner (Gesamtzustand als ein Dokument); Hinweis in der Doku | ✅ |
-| REQ-SYNC-06 | Zugriff aus dem Heimnetz direkt, von unterwegs über Tailscale; kein offener Port ins Internet | ✅ |
-| REQ-SYNC-07 | HTTPS-fähige Anbindung (Mixed-Content-frei) via Tailscale (CouchDB-Container als eigener Tailnet-Knoten mit tailscale serve) | ✅ |
+| REQ-SYNC-06 | Zugriff aus dem Heimnetz direkt, von unterwegs über ein privates VPN; kein offener Port ins Internet | ✅ |
+| REQ-SYNC-07 | HTTPS-fähige Anbindung (Mixed-Content-frei), z. B. über ein privates VPN mit HTTPS-Freigabe | ✅ |
 
 ## 7. Backlog / Ideen (REQ-IDEA)
 
