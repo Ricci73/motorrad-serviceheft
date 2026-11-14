@@ -352,9 +352,9 @@ graph TB
     end
 
     subgraph SelfHost["Eigene Infrastruktur (optional)"]
-        Couch["CouchDB 3.5 (Proxmox-LXC 105, REQ-SYNC-01/06)<br/>selbst gehostet, HTTPS via Tailscale serve im Container"]
-        CalProxy["Kalender-Lese-Proxy (Proxmox-LXC 104, REQ-CAL-08)<br/>Python stdlib, Token-Pruefung, JSON + CORS<br/>HTTPS via Tailscale serve unter /bikerdesk"]
-        Radicale["Radicale CalDAV (LXC 104)<br/>Kalender 'TD-Kalender'"]
+        Couch["CouchDB 3.5 (REQ-SYNC-01/06)<br/>selbst gehostet, per HTTPS erreichbar"]
+        CalProxy["Kalender-Lese-Proxy (REQ-CAL-08)<br/>Python stdlib, Token-Pruefung, JSON + CORS<br/>per HTTPS erreichbar"]
+        Radicale["Radicale CalDAV<br/>Kalender 'TD-Kalender'"]
     end
 
     GH -->|laedt App-Shell| UI
@@ -586,7 +586,7 @@ sequenceDiagram
     User->>UI: Sync aktivieren, URL und Zugangsdaten eingeben
     UI->>Sync: Konfiguration speichern und Sync starten
     Sync->>Pouch: live Replikation einrichten
-    Sync->>Couch: Verbindung aufbauen (via Tailscale oder HTTPS)
+    Sync->>Couch: Verbindung aufbauen (HTTPS)
     alt Erstabgleich
         Pouch->>Couch: lokalen Stand hochladen
         Couch-->>Pouch: Remote-Stand herunterladen
@@ -663,8 +663,8 @@ sequenceDiagram
 - **Service Worker:** `sw.js` fängt Anfragen an fremde Hosts nicht ab. Sonst werden sie stumm
   geblockt (der Firefox-Hinweis zum lokalen Netzwerk kann nur für Anfragen der Seite selbst
   erscheinen) und Antworten würden samt Token-URL gecacht.
-- **Firefox und lokales Netz:** Greift eine öffentliche Seite (github.io) auf eine Tailscale-Adresse
-  (100.x) zu, fragt Firefox einmal um Erlaubnis. Die Option „Entscheidung merken" setzen.
+- **Firefox und lokales Netz:** Greift eine öffentliche Seite (github.io) auf eine Adresse im
+  privaten Netz zu, fragt Firefox einmal um Erlaubnis. Die Option „Entscheidung merken" setzen.
 - **Nach dem Import:** Importierte Trackdays sind normale Trackdays (Sync, Backup, Export wie
   gewohnt). Es gibt keine Rücksynchronisation in den Kalender.
 

@@ -68,7 +68,7 @@ Dein digitaler Schreibtisch als Motorradfahrer — kostenlos, mobil, offline-fä
 - **Geräteübergreifender Abgleich** (iPhone, Mac, Tablet …) über einen **selbst gehosteten CouchDB-Server** — ohne iCloud oder andere Cloud-Dienste
 - **Opt-in:** Standardmäßig bleibt alles lokal im Browser; Sync wird unter 📦 → ☁️ Sync mit Server-URL, Benutzer und Passwort eingeschaltet
 - Live-Replikation in beide Richtungen, offline-tolerant mit automatischem Wiederanlauf; Änderungen anderer Geräte erscheinen ohne Neuladen; Status-Anzeige (synchron / offline / Fehler)
-- Zugriff über HTTPS, z. B. per Tailscale — kein offener Port ins Internet nötig
+- Zugriff über HTTPS, z. B. über ein privates VPN — kein offener Port ins Internet nötig
 - Hinweis: Der App-Zustand wird als ein Dokument abgeglichen; ändert man auf zwei Geräten gleichzeitig, bevor sie sich abgleichen, gewinnt eine Version. Details und Einrichtung: [`docs/DESIGN.md`](docs/DESIGN.md), [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
 
 ### 📤 Export & Import
